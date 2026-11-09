@@ -198,6 +198,7 @@ GameObject:
   - component: {fileID: 7672420752586634341}
   - component: {fileID: 1225531027342097268}
   - component: {fileID: 5547614053976650160}
+  - component: {fileID: 1744349384822415783}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -435,6 +436,37 @@ MonoBehaviour:
   characterRenderers:
   - {fileID: 5921295714440028825}
   - {fileID: 1257339425242580996}
+--- !u!114 &1744349384822415783
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 754087115129105432}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 67fff59a6996ef24bbd688772ae48492, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerIKClient
+  ShowTopMostFoldoutHeaderGroup: 1
+  aimRig: {fileID: 37910311353614404}
+  viewPosition: {fileID: 6044788061449637261}
+  aimTarget: {fileID: 7181494954429509148}
+  headAimTarget: {fileID: 8394587369324738337}
+  aimDistance: 10
+  aimHeightOffset: 0
+  aimSmoothSpeed: 15
+  rightHandTarget: {fileID: 8488835677770529653}
+  leftHandTarget: {fileID: 3908462207248455434}
+  useRightHandIK: 1
+  useLeftHandIK: 1
+  rightHandPositionOffset: {x: 0, y: 0, z: 0}
+  leftHandPositionOffset: {x: 0, y: 0, z: 0}
+  rightHandRotationOffset: {x: 0, y: 0, z: 0}
+  leftHandRotationOffset: {x: 0, y: 0, z: 0}
+  positionSmoothTime: 0.1
+  rotationSmoothSpeed: 10
+  showDebugGizmos: 1
 --- !u!1 &982602368990363581
 GameObject:
   m_ObjectHideFlags: 0
