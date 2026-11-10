@@ -38,9 +38,15 @@ public sealed class PlayerCameraController : NetworkBehaviour
 
     private GameObject _fallbackCamera;
 
+    // Vehicle seat: look is relative to this rotation, with a yaw limit
+    private Quaternion? _reference;
+    private float _yawLimit = 180f;
+
     // Public API for other systems (input, motor)
     public float YawDegrees => _yaw;
     public float PitchDegrees => _pitch;
+    /// <summary>Actual world-space heading of the view (differs from YawDegrees while seated).</summary>
+    public float WorldYaw => yawPivot != null ? yawPivot.eulerAngles.y : _yaw;
     public Camera Camera => playerCamera;
 
     // ============================================================
@@ -160,10 +166,15 @@ public sealed class PlayerCameraController : NetworkBehaviour
 
     private void UpdateTransforms()
     {
-        // Yaw: World-space horizontal rotation
+        // Seated: yaw is relative to the seat and limited to its range.
+        if (_reference.HasValue && _yawLimit < 180f)
+            _yaw = Mathf.Clamp(Mathf.DeltaAngle(0f, _yaw), -_yawLimit, _yawLimit);
+
+        // Yaw: world-space horizontal rotation (or relative to the seat)
         if (yawPivot != null)
         {
-            yawPivot.rotation = Quaternion.Euler(0f, _yaw, 0f);
+            Quaternion baseRotation = _reference ?? Quaternion.identity;
+            yawPivot.rotation = baseRotation * Quaternion.Euler(0f, _yaw, 0f);
         }
 
         // Pitch: Local-space vertical rotation
@@ -188,6 +199,24 @@ public sealed class PlayerCameraController : NetworkBehaviour
         _pitch = Mathf.Clamp(pitch, pitchMin, pitchMax);
         _smoothedLookDelta = Vector2.zero;
 
+        UpdateTransforms();
+    }
+
+    /// <summary>
+    /// Make the view relative to a rotation (a vehicle seat), or pass null to return to world space.
+    /// Entering faces the seat's forward; leaving keeps the current world heading.
+    /// </summary>
+    public void SetReference(Quaternion? reference, float yawLimit = 180f)
+    {
+        if (!IsOwner) return;
+
+        if (reference.HasValue && !_reference.HasValue)
+            _yaw = 0f;                 // getting in: face forward
+        else if (!reference.HasValue && _reference.HasValue)
+            _yaw = WorldYaw;           // getting out: keep looking the same way
+
+        _reference = reference;
+        _yawLimit = yawLimit;
         UpdateTransforms();
     }
 

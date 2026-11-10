@@ -40,6 +40,7 @@ public sealed class PlayerGrabController : NetworkBehaviour
 
     // Internal state
     private PlayerState _state;
+    private bool _wasSeated;
     private NetworkObject _localHeldObject;
     private NetworkObject _heldObjectIgnoringCollision;
     private float _nextCarryUpdateTime;
@@ -82,6 +83,14 @@ public sealed class PlayerGrabController : NetworkBehaviour
         if (cameraController?.Camera == null) return;
 
         UpdateLookTarget();
+
+        // Seat changes don't change the look target, so refresh the prompt when seating flips.
+        bool seated = _state != null && _state.IsSeated;
+        if (seated != _wasSeated)
+        {
+            _wasSeated = seated;
+            UpdateActionPrompt();
+        }
 
         // Send carry target updates
         if (_localHeldObject != null)
@@ -131,8 +140,9 @@ public sealed class PlayerGrabController : NetworkBehaviour
 
         if (Physics.Raycast(origin, dir, out RaycastHit hit, maxReachDistance, interactMask, QueryTriggerInteraction.Ignore))
         {
-            newLookedAtGrabbable = hit.collider.GetComponent<NetworkGrabbable>();
-            newLookedAtObject = hit.collider.GetComponent<NetworkObject>();
+            // InParent: objects like the wagon have their colliders on child objects.
+            newLookedAtGrabbable = hit.collider.GetComponentInParent<NetworkGrabbable>();
+            newLookedAtObject = hit.collider.GetComponentInParent<NetworkObject>();
         }
 
         bool changed = newLookedAtObject != LookedAtObject || newLookedAtGrabbable != LookedAtGrabbable;
@@ -145,6 +155,12 @@ public sealed class PlayerGrabController : NetworkBehaviour
 
     private void UpdateActionPrompt()
     {
+        if (_state != null && _state.IsSeated)
+        {
+            ActionPrompt = "Get out";
+            return;
+        }
+
         // Priority: Interact > Drop > Grab
         if (LookedAtObject != null)
         {
@@ -362,7 +378,15 @@ public sealed class PlayerGrabController : NetworkBehaviour
             return;
 
         var grabbable = grabbedObj.GetComponent<NetworkGrabbable>();
-        grabbable?.ServerUpdateCarryTarget(OwnerClientId, target);
+
+        // The object may have let go on its own (e.g. dragged too far): sync our state.
+        if (grabbable == null || grabbable.HolderClientId.Value != OwnerClientId)
+        {
+            _state.ClearGrabbedObjectServer();
+            return;
+        }
+
+        grabbable.ServerUpdateTarget(OwnerClientId, target, _state.AimYaw.Value);
     }
 
     // ============================================================
@@ -405,8 +429,14 @@ public sealed class PlayerGrabController : NetworkBehaviour
         float desiredDist = mode == NetworkGrabbable.Mode.Dragged ? dragDistance : carryDistance;
         Vector3 initialTarget = eye + dir * desiredDist;
 
-        if (grabbable.ServerTryGrab(OwnerClientId, initialTarget, mode))
+        if (grabbable.ServerTryGrab(OwnerClientId, initialTarget, _state.AimYaw.Value, mode))
             _state.SetGrabbedObjectServer(target);
+    }
+
+    /// <summary>Server: let go of whatever this player holds (e.g. when getting into a seat).</summary>
+    public void ServerForceDrop()
+    {
+        if (IsServer) ServerDrop();
     }
 
     private void ServerDrop()
@@ -444,9 +474,15 @@ public sealed class PlayerGrabController : NetworkBehaviour
         Vector3 eye = ServerEyePosition();
         Vector3 targetPoint = expected.transform.position;
 
-        var col = expected.GetComponent<Collider>();
-        if (col != null)
-            targetPoint = col.ClosestPoint(eye);
+        // Closest point on any of the object's colliders (the wagon's are on children).
+        float bestSqr = float.MaxValue;
+        foreach (var col in expected.GetComponentsInChildren<Collider>())
+        {
+            if (col.isTrigger || !col.enabled) continue;
+            Vector3 p = col.ClosestPoint(eye);
+            float d = (p - eye).sqrMagnitude;
+            if (d < bestSqr) { bestSqr = d; targetPoint = p; }
+        }
 
         Vector3 toTarget = targetPoint - eye;
         float dist = toTarget.magnitude;

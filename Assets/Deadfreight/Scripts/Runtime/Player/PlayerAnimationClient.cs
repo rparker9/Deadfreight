@@ -21,6 +21,10 @@ public sealed class PlayerAnimationClient : NetworkBehaviour
     [SerializeField] private string isJumpingParam = "IsJumping";
     [SerializeField] private string isCrouchingParam = "IsCrouching";
     [SerializeField] private string isSprintingParam = "IsSprinting";
+    [Tooltip("Int: 0 = hands free, 1 = carrying, 2 = dragging. Drives the upper-body pose layer.")]
+    [SerializeField] private string holdPoseParam = "HoldPose";
+    [Tooltip("Bool: true while in a vehicle seat")]
+    [SerializeField] private string isSeatedParam = "IsSeated";
 
     [Header("Animation Speed Mapping")]
     [Tooltip("How to map actual speed to animation speed")]
@@ -42,6 +46,9 @@ public sealed class PlayerAnimationClient : NetworkBehaviour
 
     private Animator _animator;
     private PlayerState _state;
+    private PlayerSeatController _seat;
+    private int _isSeatedHash;
+    private bool _hasIsSeated;
 
     // Cached parameter hashes
     private int _moveSpeedHash;
@@ -51,6 +58,8 @@ public sealed class PlayerAnimationClient : NetworkBehaviour
     private int _isJumpingHash;
     private int _isCrouchingHash;
     private int _isSprintingHash;
+    private int _holdPoseHash;
+    private bool _hasHoldPose;
 
     // Smoothed values
     private float _currentSpeed;
@@ -68,6 +77,7 @@ public sealed class PlayerAnimationClient : NetworkBehaviour
     {
         _animator = GetComponentInChildren<Animator>();
         _state = GetComponent<PlayerState>();
+        _seat = GetComponent<PlayerSeatController>();
 
         // Verify animator found
         if (_animator == null)
@@ -88,6 +98,10 @@ public sealed class PlayerAnimationClient : NetworkBehaviour
         _isJumpingHash = Animator.StringToHash(isJumpingParam);
         _isCrouchingHash = Animator.StringToHash(isCrouchingParam);
         _isSprintingHash = Animator.StringToHash(isSprintingParam);
+        _holdPoseHash = Animator.StringToHash(holdPoseParam);
+        _hasHoldPose = HasParameter(holdPoseParam);
+        _isSeatedHash = Animator.StringToHash(isSeatedParam);
+        _hasIsSeated = HasParameter(isSeatedParam);
     }
 
     private void VerifyAnimatorParameters()
@@ -207,6 +221,30 @@ public sealed class PlayerAnimationClient : NetworkBehaviour
 
         // Rotate character model to match body rotation
         UpdateBodyRotation();
+
+        // Upper-body pose for holding things, and sitting
+        UpdateHoldPose();
+        UpdateSeated();
+    }
+
+    private void UpdateHoldPose()
+    {
+        if (_animator == null || !_hasHoldPose) return;
+
+        int pose = 0;
+        if (_state.GrabbedObject.Value.TryGet(out NetworkObject held) && held != null
+            && held.TryGetComponent(out NetworkGrabbable grabbable))
+        {
+            pose = grabbable.GrabMode.Value == NetworkGrabbable.Mode.Dragged ? 2 : 1;
+        }
+
+        _animator.SetInteger(_holdPoseHash, pose);
+    }
+
+    private void UpdateSeated()
+    {
+        if (_animator == null || !_hasIsSeated) return;
+        _animator.SetBool(_isSeatedHash, _seat != null && _seat.IsSeated);
     }
 
     private void UpdateMoveInput()
@@ -282,9 +320,14 @@ public sealed class PlayerAnimationClient : NetworkBehaviour
             return;
         }
 
-        Quaternion targetRotation = _state.BodyRotation;
+        // Seated: face the seat. Otherwise: face where the player is aiming.
+        Quaternion targetRotation = _seat != null && _seat.CurrentSeat != null
+            ? _seat.CurrentSeat.transform.rotation
+            : _state.BodyRotation;
 
-        if (bodyRotationSpeed > 0f)
+        bool seated = _seat != null && _seat.CurrentSeat != null;
+
+        if (bodyRotationSpeed > 0f && !seated)   // seated: stick to the seat, no lag
         {
             characterModelRoot.rotation = Quaternion.RotateTowards(
                 characterModelRoot.rotation,

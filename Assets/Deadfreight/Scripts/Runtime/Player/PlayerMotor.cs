@@ -33,6 +33,22 @@ public sealed class PlayerMotor : NetworkBehaviour
         if (!IsOwner || settings == null || dt <= 0f)
             return;
 
+        // Seated (controller disabled): don't move, but keep publishing aim for head look.
+        if (!_cc.enabled)
+        {
+            _horizVel = Vector3.zero;
+            _verticalVel = 0f;
+            _state.MoveInput.Value = Vector2.zero;
+            _state.Speed.Value = 0f;
+            _state.IsGrounded.Value = true;
+            _state.IsJumping.Value = false;
+            _state.IsCrouching.Value = false;
+            _state.IsSprinting.Value = false;
+            _state.AimYaw.Value = yaw;
+            _state.AimPitch.Value = pitch;
+            return;
+        }
+
         // --- Horizontal ---
         move = Vector2.ClampMagnitude(move, 1f);
         bool hasInput = move.sqrMagnitude > 0.0001f;

@@ -29,38 +29,15 @@ public sealed class PlayerState : NetworkBehaviour
     // ---- Equipment (server writes) ----
     public readonly NetworkVariable<NetworkObjectReference> GrabbedObject = new(default, Everyone, Server);
 
+    // ---- Vehicle seat (server writes) ----
+    public readonly NetworkVariable<NetworkObjectReference> SeatVehicle = new(default, Everyone, Server);
+    public readonly NetworkVariable<int> SeatIndex = new(-1, Everyone, Server);
+
     // ---- Helpers ----
     public Vector3 AimDirection => Quaternion.Euler(AimPitch.Value, AimYaw.Value, 0f) * Vector3.forward;
     public Quaternion BodyRotation => Quaternion.Euler(0f, AimYaw.Value, 0f);
     public bool IsMoving => MoveInput.Value.sqrMagnitude > 0.01f;
-
-    private HandGripPoints _cachedGripPoints;
-
-    /// <summary>HandGripPoints of the currently grabbed object (for hand IK).</summary>
-    public HandGripPoints GrabbedGripPoints
-    {
-        get
-        {
-            if (_cachedGripPoints == null && GrabbedObject.Value.TryGet(out NetworkObject netObj))
-                _cachedGripPoints = netObj.GetComponent<HandGripPoints>();
-            return _cachedGripPoints;
-        }
-    }
-
-    public override void OnNetworkSpawn()
-    {
-        GrabbedObject.OnValueChanged += OnGrabbedObjectChanged;
-    }
-
-    public override void OnNetworkDespawn()
-    {
-        GrabbedObject.OnValueChanged -= OnGrabbedObjectChanged;
-    }
-
-    private void OnGrabbedObjectChanged(NetworkObjectReference prev, NetworkObjectReference curr)
-    {
-        _cachedGripPoints = null; // re-resolve on next read
-    }
+    public bool IsSeated => SeatIndex.Value >= 0;
 
     // ---- Server-only API ----
     public void SetGrabbedObjectServer(NetworkObject grabbedObj)
@@ -73,5 +50,19 @@ public sealed class PlayerState : NetworkBehaviour
     {
         if (!IsServer) return;
         GrabbedObject.Value = default;
+    }
+
+    public void SetSeatServer(NetworkObject vehicle, int seatIndex)
+    {
+        if (!IsServer) return;
+        SeatVehicle.Value = new NetworkObjectReference(vehicle);
+        SeatIndex.Value = seatIndex;
+    }
+
+    public void ClearSeatServer()
+    {
+        if (!IsServer) return;
+        SeatIndex.Value = -1;
+        SeatVehicle.Value = default;
     }
 }

@@ -1,16 +1,16 @@
-using System;
 using Unity.Netcode;
 using UnityEngine;
 
 /// <summary>
-/// SERVER-AUTHORITATIVE grabbable physics object.
-/// Players can grab, carry, drag, and throw these objects.
-/// 
-/// - Server simulates Rigidbody and replicates via NetworkTransform
-/// - Clients keep Rigidbody kinematic (no local simulation)
-/// - Player holds object by sending desired carry target position
-/// - Server applies spring-damper force toward that target
-/// 
+/// SERVER-AUTHORITATIVE grabbable object.
+///
+/// Carried (light objects): the object turns kinematic and follows a hold point in
+/// front of the holder at a fixed angle. Simple and predictable; physics returns on drop/throw.
+///
+/// Dragged (heavy objects): stays a physics object. A spring pulls it toward the holder's
+/// target, but upward pull is capped by mass, so heavy objects stay on the ground.
+///
+/// Clients keep the Rigidbody kinematic; NetworkTransform (Server authority) replicates it.
 /// Requires: NetworkObject + Rigidbody + Collider + NetworkTransform
 /// </summary>
 [DisallowMultipleComponent]
@@ -25,74 +25,44 @@ public sealed class NetworkGrabbable : NetworkBehaviour
         Dragged = 2
     }
 
-    [Serializable]
-    private struct GrabSettings
-    {
-        [Header("Spring Motion")]
-        public float positionSpring;
-        public float positionDamping;
-        public float maxAcceleration;
+    [Header("Carry")]
+    [Tooltip("How quickly the object catches up to the hold point (higher = snappier)")]
+    [SerializeField] private float carryFollowSpeed = 20f;
 
-        [Header("Break / Safety")]
-        public float maxDistance;
+    [Tooltip("Rotation while carried, relative to the holder's facing (degrees)")]
+    [SerializeField] private Vector3 carryRotation = Vector3.zero;
 
-        [Header("Physics While Grabbed")]
-        public bool disableGravity;
-        public float drag;
-        public float angularDrag;
-    }
+    [Header("Drag")]
+    [SerializeField] private float dragSpring = 90f;
+    [SerializeField] private float dragDamping = 18f;
+    [SerializeField] private float dragMaxAcceleration = 40f;
 
-    [Header("Carry Settings")]
-    [SerializeField]
-    private GrabSettings carrySettings = new GrabSettings
-    {
-        positionSpring = 180f,
-        positionDamping = 22f,
-        maxAcceleration = 60f,
-        maxDistance = 3.0f,
-        disableGravity = true,
-        drag = 8f,
-        angularDrag = 8f
-    };
+    [Tooltip("Upward force (Newtons) the holder can apply. Lift = force / mass; below gravity it can't leave the ground.")]
+    [SerializeField] private float dragLiftForce = 0f;
 
-    [Header("Drag Settings")]
-    [SerializeField]
-    private GrabSettings dragSettings = new GrabSettings
-    {
-        positionSpring = 90f,
-        positionDamping = 18f,
-        maxAcceleration = 40f,
-        maxDistance = 3.5f,
-        disableGravity = false,
-        drag = 3f,
-        angularDrag = 3f
-    };
+    [Tooltip("Let go if the object ends up this far (horizontally) from where the holder wants it")]
+    [SerializeField] private float dragMaxDistance = 3.5f;
 
-    private Rigidbody _rb;
+    [SerializeField] private float dragLinearDamping = 3f;
+    [SerializeField] private float dragAngularDamping = 3f;
 
     // Who currently holds this object (ulong.MaxValue = nobody)
     public readonly NetworkVariable<ulong> HolderClientId = new(
-        ulong.MaxValue,
-        NetworkVariableReadPermission.Everyone,
-        NetworkVariableWritePermission.Server);
+        ulong.MaxValue, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
-    // Current grab mode (Released/Carried/Dragged)
     public readonly NetworkVariable<Mode> GrabMode = new(
-        Mode.Released,
-        NetworkVariableReadPermission.Everyone,
-        NetworkVariableWritePermission.Server);
-
-    // Server-only target position
-    private Vector3 _carryTargetPosition;
-    private bool _hasCarryTarget;
-
-    // Cached original physics state (server only)
-    private bool _originalUseGravity;
-    private float _originalDrag;
-    private float _originalAngularDrag;
+        Mode.Released, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
     public bool IsGrabbed => HolderClientId.Value != ulong.MaxValue;
     public float Mass => _rb != null ? _rb.mass : 0f;
+
+    private Rigidbody _rb;
+
+    // Server-only
+    private Vector3 _target;
+    private float _holderYaw;
+    private float _defaultLinearDamping;
+    private float _defaultAngularDamping;
 
     // ============================================================
     // LIFECYCLE
@@ -101,59 +71,61 @@ public sealed class NetworkGrabbable : NetworkBehaviour
     private void Awake()
     {
         _rb = GetComponent<Rigidbody>();
+        _defaultLinearDamping = _rb.linearDamping;
+        _defaultAngularDamping = _rb.angularDamping;
     }
 
     public override void OnNetworkSpawn()
     {
-        // Server: authoritative physics
-        if (!IsServer)
-        {
-            if (_rb != null)
-                _rb.isKinematic = true;
-        }
-        else
-        {
-            if (_rb != null)
-            {
-                _rb.isKinematic = false;
-                CacheDefaultPhysics();
-            }
-        }
-    }
-
-    public override void OnNetworkDespawn()
-    {
-        if (IsServer)
-        {
-            RestoreDefaultPhysics();
-        }
+        // Only the server simulates; clients just display the replicated transform.
+        _rb.isKinematic = !IsServer;
     }
 
     private void FixedUpdate()
     {
-        if (!IsServer) return;
-        if (_rb == null) return;
-        if (!IsGrabbed) return;
-        if (!_hasCarryTarget) return;
+        if (!IsServer || !IsGrabbed) return;
 
-        GrabSettings settings = GetActiveSettings();
+        if (GrabMode.Value == Mode.Carried)
+            FollowHoldPoint();
+        else if (GrabMode.Value == Mode.Dragged)
+            PullTowardTarget();
+    }
 
-        // Auto-release if too far away (prevents infinite tethering)
-        float dist = Vector3.Distance(_rb.position, _carryTargetPosition);
-        if (dist > settings.maxDistance)
+    // ============================================================
+    // CARRY: kinematic follow
+    // ============================================================
+
+    private void FollowHoldPoint()
+    {
+        float t = 1f - Mathf.Exp(-carryFollowSpeed * Time.fixedDeltaTime);
+        Quaternion targetRot = Quaternion.Euler(0f, _holderYaw, 0f) * Quaternion.Euler(carryRotation);
+
+        _rb.MovePosition(Vector3.Lerp(_rb.position, _target, t));
+        _rb.MoveRotation(Quaternion.Slerp(_rb.rotation, targetRot, t));
+    }
+
+    // ============================================================
+    // DRAG: spring with mass-limited lift
+    // ============================================================
+
+    private void PullTowardTarget()
+    {
+        Vector3 error = _target - _rb.position;
+
+        float maxLift = dragLiftForce / Mathf.Max(_rb.mass, 0.01f);
+        bool canLift = maxLift > -Physics.gravity.y;
+
+        // If it can't be lifted, height doesn't count (looking up shouldn't break the grip).
+        Vector3 distError = canLift ? error : Vector3.ProjectOnPlane(error, Vector3.up);
+        if (distError.magnitude > dragMaxDistance)
         {
             ServerRelease();
             return;
         }
 
-        // Spring-damper controller (PD control as acceleration)
-        Vector3 posError = _carryTargetPosition - _rb.position;
-        Vector3 accel = posError * settings.positionSpring + (-_rb.linearVelocity) * settings.positionDamping;
-
-        // Clamp acceleration magnitude
-        float mag = accel.magnitude;
-        if (mag > settings.maxAcceleration)
-            accel = accel * (settings.maxAcceleration / mag);
+        Vector3 accel = error * dragSpring - _rb.linearVelocity * dragDamping;
+        accel = Vector3.ClampMagnitude(accel, dragMaxAcceleration);
+        if (accel.y > maxLift) accel.y = maxLift;
 
         _rb.AddForce(accel, ForceMode.Acceleration);
     }
@@ -162,125 +134,54 @@ public sealed class NetworkGrabbable : NetworkBehaviour
     // SERVER API
     // ============================================================
 
-    /// <summary>
-    /// Server: Try to grab this object. Returns false if already grabbed or invalid.
-    /// </summary>
-    public bool ServerTryGrab(ulong holderClientId, Vector3 initialTargetPos, Mode mode)
+    public bool ServerTryGrab(ulong holderClientId, Vector3 target, float holderYaw, Mode mode)
     {
-        if (!IsServer) return false;
-        if (_rb == null) return false;
-        if (mode == Mode.Released) return false;
-        if (IsGrabbed) return false;
+        if (!IsServer || mode == Mode.Released || IsGrabbed) return false;
 
         HolderClientId.Value = holderClientId;
         GrabMode.Value = mode;
+        _target = target;
+        _holderYaw = holderYaw;
 
-        _carryTargetPosition = initialTargetPos;
-        _hasCarryTarget = true;
-
-        ApplyGrabbedPhysics(GetActiveSettings());
+        if (mode == Mode.Carried)
+        {
+            _rb.isKinematic = true;
+        }
+        else
+        {
+            _rb.linearDamping = dragLinearDamping;
+            _rb.angularDamping = dragAngularDamping;
+            _rb.WakeUp();
+        }
         return true;
     }
 
-    /// <summary>
-    /// Server: Update the carry target position (called every frame by holder).
-    /// </summary>
-    public void ServerUpdateCarryTarget(ulong holderClientId, Vector3 targetPos)
+    /// <summary>Called repeatedly by the holder with where they want the object.</summary>
+    public void ServerUpdateTarget(ulong holderClientId, Vector3 target, float holderYaw)
     {
-        if (!IsServer) return;
-        if (!IsGrabbed) return;
-        if (HolderClientId.Value != holderClientId) return;
-
-        _carryTargetPosition = targetPos;
-        _hasCarryTarget = true;
+        if (!IsServer || HolderClientId.Value != holderClientId) return;
+        _target = target;
+        _holderYaw = holderYaw;
     }
 
-    /// <summary>
-    /// Server: Change grab mode (Carried <-> Dragged).
-    /// </summary>
-    public void ServerSetGrabMode(ulong holderClientId, Mode mode)
-    {
-        if (!IsServer) return;
-        if (!IsGrabbed) return;
-        if (HolderClientId.Value != holderClientId) return;
-
-        if (mode == Mode.Released)
-        {
-            ServerRelease();
-            return;
-        }
-
-        GrabMode.Value = mode;
-        ApplyGrabbedPhysics(GetActiveSettings());
-    }
-
-    /// <summary>
-    /// Server: Release object (stop carrying/dragging).
-    /// </summary>
     public void ServerRelease()
     {
         if (!IsServer) return;
 
         HolderClientId.Value = ulong.MaxValue;
         GrabMode.Value = Mode.Released;
-        _hasCarryTarget = false;
 
-        RestoreDefaultPhysics();
+        _rb.isKinematic = false;
+        _rb.linearDamping = _defaultLinearDamping;
+        _rb.angularDamping = _defaultAngularDamping;
+        _rb.WakeUp();
     }
 
-    /// <summary>
-    /// Server: Throw object with impulse.
-    /// </summary>
     public void ServerThrow(ulong holderClientId, Vector3 impulse)
     {
-        if (!IsServer) return;
-        if (!IsGrabbed) return;
-        if (HolderClientId.Value != holderClientId) return;
-        if (_rb == null) return;
+        if (!IsServer || HolderClientId.Value != holderClientId) return;
 
-        // Release first (restores gravity/drag), then apply impulse
         ServerRelease();
         _rb.AddForce(impulse, ForceMode.Impulse);
-        _rb.WakeUp();
-    }
-
-    // ============================================================
-    // INTERNAL PHYSICS MANAGEMENT
-    // ============================================================
-
-    private GrabSettings GetActiveSettings()
-    {
-        return GrabMode.Value switch
-        {
-            Mode.Dragged => dragSettings,
-            Mode.Carried => carrySettings,
-            _ => carrySettings
-        };
-    }
-
-    private void CacheDefaultPhysics()
-    {
-        _originalUseGravity = _rb.useGravity;
-        _originalDrag = _rb.linearDamping;
-        _originalAngularDrag = _rb.angularDamping;
-    }
-
-    private void ApplyGrabbedPhysics(GrabSettings settings)
-    {
-        CacheDefaultPhysics();
-
-        _rb.useGravity = !settings.disableGravity ? _originalUseGravity : false;
-        _rb.linearDamping = settings.drag;
-        _rb.angularDamping = settings.angularDrag;
-        _rb.WakeUp();
-    }
-
-    private void RestoreDefaultPhysics()
-    {
-        if (_rb == null) return;
-
-        _rb.useGravity = _originalUseGravity;
-        _rb.linearDamping = _originalDrag;
-        _rb.angularDamping = _originalAngularDrag;
     }
 }

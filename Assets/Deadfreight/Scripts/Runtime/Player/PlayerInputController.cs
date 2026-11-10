@@ -13,6 +13,7 @@ public sealed class PlayerInputController : NetworkBehaviour
     private PlayerMotor _motor;
     private PlayerCameraController _camera;
     private PlayerGrabController _grab;
+    private PlayerSeatController _seat;
     private UIRoot _ui;
 
     // ============================================================
@@ -30,6 +31,7 @@ public sealed class PlayerInputController : NetworkBehaviour
         _motor = GetComponent<PlayerMotor>();
         _camera = GetComponent<PlayerCameraController>();
         _grab = GetComponent<PlayerGrabController>();
+        _seat = GetComponent<PlayerSeatController>();
         _ui = AppRoot.Instance != null ? AppRoot.Instance.GetComponent<UIRoot>() : null;
 
         _controls = new PlayerControls();
@@ -62,6 +64,7 @@ public sealed class PlayerInputController : NetworkBehaviour
 
         var g = _controls.Gameplay;
         bool paused = _ui != null && _ui.IsPaused;
+        bool seated = _seat != null && _seat.IsSeated;
 
         if (!paused)
         {
@@ -69,21 +72,33 @@ public sealed class PlayerInputController : NetworkBehaviour
             if (_camera != null)
                 _camera.ApplyLook(g.Look.ReadValue<Vector2>(), Time.deltaTime);
 
-            if (_grab != null)
+            if (seated)
+            {
+                if (g.Interact.triggered) _seat.RequestExit();
+            }
+            else if (_grab != null)
             {
                 if (g.Interact.triggered) _grab.RequestPrimaryAction();
                 if (g.Throw.triggered) _grab.RequestThrow();
             }
         }
 
+        // Seated: WASD drives (if driver), Space brakes. The motor just publishes aim.
+        if (seated && _seat.IsDriving)
+        {
+            Vector2 drive = paused ? Vector2.zero : g.Move.ReadValue<Vector2>();
+            _seat.SetDriverInput(drive.y, drive.x, !paused && g.Jump.IsPressed());
+        }
+
         // Keep moving the motor while paused (with no input) so gravity
         // and deceleration still apply and remote players stop animating.
-        Vector2 move = paused ? Vector2.zero : g.Move.ReadValue<Vector2>();
-        bool jump = !paused && g.Jump.IsPressed();
-        bool sprint = !paused && g.Sprint.IsPressed();
-        bool crouch = !paused && g.Crouch.IsPressed();
+        bool canMove = !paused && !seated;
+        Vector2 move = canMove ? g.Move.ReadValue<Vector2>() : Vector2.zero;
+        bool jump = canMove && g.Jump.IsPressed();
+        bool sprint = canMove && g.Sprint.IsPressed();
+        bool crouch = canMove && g.Crouch.IsPressed();
 
-        float yaw = _camera != null ? _camera.YawDegrees : transform.eulerAngles.y;
+        float yaw = _camera != null ? _camera.WorldYaw : transform.eulerAngles.y;
         float pitch = _camera != null ? _camera.PitchDegrees : 0f;
 
         _motor.Move(move, yaw, pitch, jump, sprint, crouch, Time.deltaTime);
