@@ -20,6 +20,7 @@ public sealed class PlayerSeatController : NetworkBehaviour
     private PlayerCameraController _camera;
 
     private VehicleSeats _vehicle;
+    private Rigidbody _vehicleBody;
     private VehicleSeat _seat;
 
     // Owner: latest driver input, sent at inputSendRate
@@ -67,8 +68,24 @@ public sealed class PlayerSeatController : NetworkBehaviour
         if (Time.unscaledTime >= _nextSendTime)
         {
             _nextSendTime = Time.unscaledTime + 1f / Mathf.Max(1f, inputSendRate);
-            DriverInputServerRpc(_throttle, _steer, _brake);
+            DriverInputServerRpc(_throttle, ComputeSteer(), _brake);
         }
+    }
+
+    /// <summary>
+    /// Keys: A/D as given. Camera (Halo-style): steer toward where the camera looks,
+    /// reversed when backing up so the rear swings toward the camera.
+    /// </summary>
+    private float ComputeSteer()
+    {
+        if (_seat.Steering == VehicleSeat.SteerMode.Keys || _camera == null)
+            return _steer;
+
+        float vehicleYaw = _seat.Vehicle.eulerAngles.y;
+        float offset = Mathf.DeltaAngle(vehicleYaw, _camera.WorldYaw);
+        float steer = Mathf.Clamp(offset / Mathf.Max(1f, _seat.CameraSteerFullAngle), -1f, 1f);
+
+        return _throttle < -0.01f ? -steer : steer;
     }
 
     private void LateUpdate()
@@ -79,9 +96,20 @@ public sealed class PlayerSeatController : NetworkBehaviour
         // Every machine: pin the player to the seat.
         transform.position = _seat.transform.position;
 
-        // Owner: view is relative to the seat.
-        if (IsOwner && _camera != null)
+        if (!IsOwner || _camera == null) return;
+
+        if (_seat.ThirdPerson)
+        {
+            // Halo-style: free world-space orbit around the vehicle.
+            _camera.SetReference(null);
+            _camera.SetThirdPerson(_seat.CameraFocusPoint, _seat.CameraDistance, _vehicleBody);
+        }
+        else
+        {
+            // First person: view is relative to the seat.
+            _camera.ClearThirdPerson();
             _camera.SetReference(_seat.ViewReference, _seat.YawLimit);
+        }
     }
 
     /// <summary>Reacts to the server's seat assignment (PlayerState) changing.</summary>
@@ -98,6 +126,7 @@ public sealed class PlayerSeatController : NetworkBehaviour
 
         VehicleSeat previous = _seat;
         _vehicle = vehicle;
+        _vehicleBody = vehicle != null ? vehicle.GetComponent<Rigidbody>() : null;
         _seat = seat;
 
         if (seat != null)
@@ -112,6 +141,10 @@ public sealed class PlayerSeatController : NetworkBehaviour
         if (_cc != null) _cc.enabled = false;
         _throttle = _steer = 0f;
         _brake = false;
+
+        // Third person starts behind the vehicle, looking slightly down.
+        if (IsOwner && _camera != null && _seat.ThirdPerson)
+            _camera.SetAngles(_seat.Vehicle.eulerAngles.y, 12f);
     }
 
     private void OnExitSeat(VehicleSeat previous)
@@ -122,7 +155,10 @@ public sealed class PlayerSeatController : NetworkBehaviour
                 transform.position = previous.ExitPoint.position;
 
             if (_camera != null)
+            {
+                _camera.ClearThirdPerson();
                 _camera.SetReference(null);
+            }
         }
 
         if (_cc != null) _cc.enabled = true;

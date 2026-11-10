@@ -139,12 +139,12 @@ public sealed class PlayerAnimationClient : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
-        // Owner: hide character model (using FPS arms instead)
+        // Owner: hide character model (first person). Stays enabled only to show it
+        // again while in a third-person vehicle seat (see LateUpdate).
         if (IsOwner)
         {
             SetRenderersVisible(false);
-            enabled = false;
-
+            _ownerBodyVisible = false;
             return;
         }
 
@@ -210,9 +210,15 @@ public sealed class PlayerAnimationClient : NetworkBehaviour
     // UPDATE
     // ============================================================
 
+    private bool _ownerBodyVisible;
+
     private void LateUpdate()
     {
-        if (IsOwner) return;
+        if (IsOwner)
+        {
+            UpdateOwnerThirdPerson();
+            return;
+        }
 
         UpdateMoveInput();
 
@@ -239,6 +245,24 @@ public sealed class PlayerAnimationClient : NetworkBehaviour
         }
 
         _animator.SetInteger(_holdPoseHash, pose);
+    }
+
+    /// <summary>Owner: show our own body (seated) while the camera is in third person.</summary>
+    private void UpdateOwnerThirdPerson()
+    {
+        bool show = _seat != null && _seat.CurrentSeat != null && _seat.CurrentSeat.ThirdPerson;
+
+        if (show != _ownerBodyVisible)
+        {
+            _ownerBodyVisible = show;
+            SetRenderersVisible(show);
+        }
+
+        if (show)
+        {
+            UpdateBodyRotation();
+            UpdateSeated();
+        }
     }
 
     private void UpdateSeated()

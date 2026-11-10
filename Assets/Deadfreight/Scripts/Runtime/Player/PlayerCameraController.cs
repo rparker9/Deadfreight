@@ -42,6 +42,15 @@ public sealed class PlayerCameraController : NetworkBehaviour
     private Quaternion? _reference;
     private float _yawLimit = 180f;
 
+    [Header("Third Person")]
+    [SerializeField] private float thirdPersonCollisionRadius = 0.25f;
+    [SerializeField] private LayerMask thirdPersonCollisionMask = ~0;
+
+    private bool _thirdPerson;
+    private Vector3 _firstPersonLocalPos;
+    private Quaternion _firstPersonLocalRot;
+    private readonly RaycastHit[] _hits = new RaycastHit[16];
+
     // Public API for other systems (input, motor)
     public float YawDegrees => _yaw;
     public float PitchDegrees => _pitch;
@@ -82,7 +91,11 @@ public sealed class PlayerCameraController : NetworkBehaviour
     {
         // Enable player camera
         if (playerCamera != null)
+        {
             playerCamera.gameObject.SetActive(true);
+            _firstPersonLocalPos = playerCamera.transform.localPosition;
+            _firstPersonLocalRot = playerCamera.transform.localRotation;
+        }
 
         // Find and disable fallback camera (usually scene camera)
         _fallbackCamera = GameObject.FindGameObjectWithTag(FallbackCameraTag);
@@ -219,6 +232,44 @@ public sealed class PlayerCameraController : NetworkBehaviour
         _yawLimit = yawLimit;
         UpdateTransforms();
     }
+
+    /// <summary>
+    /// Third person: place the camera behind the focus point along the current look direction,
+    /// pulled in if something is in the way. Call every LateUpdate while active.
+    /// </summary>
+    public void SetThirdPerson(Vector3 focus, float distance, Rigidbody ignore = null)
+    {
+        if (!IsOwner || playerCamera == null) return;
+        _thirdPerson = true;
+
+        Vector3 dir = GetLookDirection();
+        float dist = distance;
+
+        int count = Physics.SphereCastNonAlloc(focus, thirdPersonCollisionRadius, -dir, _hits, distance,
+                                               thirdPersonCollisionMask, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < count; i++)
+        {
+            var h = _hits[i];
+            if (h.distance <= 0f) continue;                       // overlapping at start (e.g. inside the vehicle)
+            if (ignore != null && h.rigidbody == ignore) continue; // don't collide with our own vehicle
+            if (h.collider.transform.IsChildOf(transform)) continue; // or ourselves
+            if (h.distance < dist) dist = h.distance;
+        }
+
+        dist = Mathf.Max(0.5f, dist - 0.1f);
+        playerCamera.transform.SetPositionAndRotation(focus - dir * dist, Quaternion.LookRotation(dir, Vector3.up));
+    }
+
+    /// <summary>Back to the normal first-person camera position.</summary>
+    public void ClearThirdPerson()
+    {
+        if (!_thirdPerson || playerCamera == null) return;
+        _thirdPerson = false;
+        playerCamera.transform.localPosition = _firstPersonLocalPos;
+        playerCamera.transform.localRotation = _firstPersonLocalRot;
+    }
+
+    public bool IsThirdPerson => _thirdPerson;
 
     /// <summary>
     /// Add recoil/camera shake (useful for weapon feedback)
