@@ -4,7 +4,7 @@ using UnityEngine.InputSystem;
 
 /// <summary>
 /// OWNER-ONLY: The single source of input for the local player.
-/// Each frame: look -> camera, E/Q -> grab controller, movement -> motor.
+/// Each frame: look -> camera, E/Q -> interactor (or seat, while seated), movement -> motor.
 /// </summary>
 [RequireComponent(typeof(PlayerMotor))]
 public sealed class PlayerInputController : NetworkBehaviour
@@ -12,8 +12,8 @@ public sealed class PlayerInputController : NetworkBehaviour
     private PlayerControls _controls;
     private PlayerMotor _motor;
     private PlayerCameraController _camera;
-    private PlayerGrabController _grab;
-    private PlayerSeatController _seat;
+    private PlayerInteractor _interactor;
+    private PlayerSeating _seat;
     private UIRoot _ui;
 
     // ============================================================
@@ -30,8 +30,8 @@ public sealed class PlayerInputController : NetworkBehaviour
 
         _motor = GetComponent<PlayerMotor>();
         _camera = GetComponent<PlayerCameraController>();
-        _grab = GetComponent<PlayerGrabController>();
-        _seat = GetComponent<PlayerSeatController>();
+        _interactor = GetComponent<PlayerInteractor>();
+        _seat = GetComponent<PlayerSeating>();
         _ui = AppRoot.Instance != null ? AppRoot.Instance.GetComponent<UIRoot>() : null;
 
         _controls = new PlayerControls();
@@ -68,7 +68,7 @@ public sealed class PlayerInputController : NetworkBehaviour
 
         if (!paused)
         {
-            // Camera first so the grab raycast uses this frame's view.
+            // Camera first so the interaction raycast uses this frame's view.
             if (_camera != null)
                 _camera.ApplyLook(g.Look.ReadValue<Vector2>(), Time.deltaTime);
 
@@ -76,10 +76,10 @@ public sealed class PlayerInputController : NetworkBehaviour
             {
                 if (g.Interact.triggered) _seat.RequestExit();
             }
-            else if (_grab != null)
+            else if (_interactor != null)
             {
-                if (g.Interact.triggered) _grab.RequestPrimaryAction();
-                if (g.Throw.triggered) _grab.RequestThrow();
+                if (g.Interact.triggered) _interactor.RequestPrimaryAction();
+                if (g.Throw.triggered) _interactor.RequestThrow();
             }
         }
 

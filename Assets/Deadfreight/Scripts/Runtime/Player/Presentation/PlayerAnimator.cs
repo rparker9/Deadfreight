@@ -2,12 +2,11 @@ using Unity.Netcode;
 using UnityEngine;
 
 /// <summary>
-/// CLIENT-ONLY (Non-Owner): Drives animator based on PlayerState.
-/// This component only runs for REMOTE players (what others see).
-/// Owner uses separate FPS arm rig.
+/// Presentation only: drives the character Animator from PlayerState.
+/// Remote players: always. Owner: only while seated in third person (otherwise the body is hidden).
 /// </summary>
 [RequireComponent(typeof(PlayerState))]
-public sealed class PlayerAnimationClient : NetworkBehaviour
+public sealed class PlayerAnimator : NetworkBehaviour
 {
     [Header("Character Model")]
     [Tooltip("Character visual root - rotates to match body rotation")]
@@ -21,7 +20,7 @@ public sealed class PlayerAnimationClient : NetworkBehaviour
     [SerializeField] private string isJumpingParam = "IsJumping";
     [SerializeField] private string isCrouchingParam = "IsCrouching";
     [SerializeField] private string isSprintingParam = "IsSprinting";
-    [Tooltip("Int: 0 = hands free, 1 = carrying, 2 = dragging. Drives the upper-body pose layer.")]
+    [Tooltip("Int: 0 = hands free, 1 = carrying. Drives the upper-body pose layer (room for more poses later).")]
     [SerializeField] private string holdPoseParam = "HoldPose";
     [Tooltip("Bool: true while in a vehicle seat")]
     [SerializeField] private string isSeatedParam = "IsSeated";
@@ -46,7 +45,7 @@ public sealed class PlayerAnimationClient : NetworkBehaviour
 
     private Animator _animator;
     private PlayerState _state;
-    private PlayerSeatController _seat;
+    private PlayerSeating _seat;
     private int _isSeatedHash;
     private bool _hasIsSeated;
 
@@ -77,12 +76,12 @@ public sealed class PlayerAnimationClient : NetworkBehaviour
     {
         _animator = GetComponentInChildren<Animator>();
         _state = GetComponent<PlayerState>();
-        _seat = GetComponent<PlayerSeatController>();
+        _seat = GetComponent<PlayerSeating>();
 
         // Verify animator found
         if (_animator == null)
         {
-            Debug.LogError($"[PlayerAnimationClient] Animator not found on {gameObject.name}! Make sure Animator component is on a child GameObject.");
+            Debug.LogError($"[PlayerAnimator] Animator not found on {gameObject.name}! Make sure Animator component is on a child GameObject.");
         }
         else
         {
@@ -116,13 +115,13 @@ public sealed class PlayerAnimationClient : NetworkBehaviour
         bool hasCrouching = HasParameter(isCrouchingParam);
         bool hasSprinting = HasParameter(isSprintingParam);
 
-        if (!hasSpeed) Debug.LogError($"[PlayerAnimationClient] Animator missing parameter: {moveSpeedParam}");
-        if (!hasMoveX) Debug.LogError($"[PlayerAnimationClient] Animator missing parameter: {moveXParam}");
-        if (!hasMoveY) Debug.LogError($"[PlayerAnimationClient] Animator missing parameter: {moveYParam}");
-        if (!hasGrounded) Debug.LogWarning($"[PlayerAnimationClient] Animator missing parameter: {isGroundedParam}");
-        if (!hasJumping) Debug.LogWarning($"[PlayerAnimationClient] Animator missing parameter: {isJumpingParam}");
-        if (!hasCrouching) Debug.LogWarning($"[PlayerAnimationClient] Animator missing parameter: {isCrouchingParam}");
-        if (!hasSprinting) Debug.LogWarning($"[PlayerAnimationClient] Animator missing parameter: {isSprintingParam}");
+        if (!hasSpeed) Debug.LogError($"[PlayerAnimator] Animator missing parameter: {moveSpeedParam}");
+        if (!hasMoveX) Debug.LogError($"[PlayerAnimator] Animator missing parameter: {moveXParam}");
+        if (!hasMoveY) Debug.LogError($"[PlayerAnimator] Animator missing parameter: {moveYParam}");
+        if (!hasGrounded) Debug.LogWarning($"[PlayerAnimator] Animator missing parameter: {isGroundedParam}");
+        if (!hasJumping) Debug.LogWarning($"[PlayerAnimator] Animator missing parameter: {isJumpingParam}");
+        if (!hasCrouching) Debug.LogWarning($"[PlayerAnimator] Animator missing parameter: {isCrouchingParam}");
+        if (!hasSprinting) Debug.LogWarning($"[PlayerAnimator] Animator missing parameter: {isSprintingParam}");
     }
 
     private bool HasParameter(string paramName)
@@ -237,14 +236,8 @@ public sealed class PlayerAnimationClient : NetworkBehaviour
     {
         if (_animator == null || !_hasHoldPose) return;
 
-        int pose = 0;
-        if (_state.GrabbedObject.Value.TryGet(out NetworkObject held) && held != null
-            && held.TryGetComponent(out NetworkGrabbable grabbable))
-        {
-            pose = grabbable.GrabMode.Value == NetworkGrabbable.Mode.Dragged ? 2 : 1;
-        }
-
-        _animator.SetInteger(_holdPoseHash, pose);
+        bool holding = _state.HeldObject.Value.TryGet(out NetworkObject held) && held != null;
+        _animator.SetInteger(_holdPoseHash, holding ? 1 : 0);
     }
 
     /// <summary>Owner: show our own body (seated) while the camera is in third person.</summary>

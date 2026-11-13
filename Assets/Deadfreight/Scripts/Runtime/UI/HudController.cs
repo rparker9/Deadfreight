@@ -3,7 +3,7 @@ using UnityEngine;
 
 /// <summary>
 /// Displays interaction prompts for the local player.
-/// Reads state directly from PlayerGrabController each frame (no events needed).
+/// Reads state directly from the local PlayerInteractor each frame (no events needed).
 /// </summary>
 public sealed class HUDController : MonoBehaviour
 {
@@ -11,7 +11,7 @@ public sealed class HUDController : MonoBehaviour
     [SerializeField] private GameObject root;
     [SerializeField] private TMP_Text promptText;
 
-    private PlayerGrabController _grabController;
+    private PlayerInteractor _interactor;
 
     private void Awake()
     {
@@ -22,10 +22,10 @@ public sealed class HUDController : MonoBehaviour
     private void Update()
     {
         // Find local player if we don't have one
-        if (_grabController == null)
+        if (_interactor == null)
         {
-            _grabController = FindLocalPlayerGrabController();
-            if (_grabController == null)
+            _interactor = FindLocalInteractor();
+            if (_interactor == null)
             {
                 SetVisible(false);
                 return;
@@ -45,9 +45,9 @@ public sealed class HUDController : MonoBehaviour
         SetVisible(true);
     }
 
-    private PlayerGrabController FindLocalPlayerGrabController()
+    private PlayerInteractor FindLocalInteractor()
     {
-        var all = FindObjectsByType<PlayerGrabController>(FindObjectsInactive.Include);
+        var all = FindObjectsByType<PlayerInteractor>(FindObjectsInactive.Include);
         foreach (var controller in all)
         {
             if (controller != null && controller.IsOwner)
@@ -60,12 +60,12 @@ public sealed class HUDController : MonoBehaviour
     {
         // Primary action (E key)
         string primary = null;
-        if (!string.IsNullOrEmpty(_grabController.ActionPrompt))
-            primary = $"E: {_grabController.ActionPrompt}";
+        if (!string.IsNullOrEmpty(_interactor.ActionPrompt))
+            primary = $"E: {_interactor.ActionPrompt}";
 
         // Secondary action (Q key) - only when holding
         string secondary = null;
-        if (_grabController.CanThrow)
+        if (_interactor.CanThrow)
             secondary = "Q: Throw";
 
         // Combine prompts

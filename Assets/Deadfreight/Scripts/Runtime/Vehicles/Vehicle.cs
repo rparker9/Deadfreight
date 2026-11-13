@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 /// <summary>
-/// SERVER-AUTHORITATIVE wagon. The server simulates the chassis Rigidbody and wheels;
+/// SERVER-AUTHORITATIVE wheeled vehicle (wagon, carriage, ...). The server simulates the chassis Rigidbody and wheels;
 /// clients see it through NetworkTransform (Server authority) and only run wheel visuals.
 ///
 /// Others (players, creatures) affect it through the Server API:
@@ -13,10 +13,10 @@ using UnityEngine.InputSystem;
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Rigidbody))]
-public sealed class Wagon : NetworkBehaviour
+public sealed class Vehicle : NetworkBehaviour
 {
     [Header("Wheels")]
-    [SerializeField] private WagonWheel[] wheels;
+    [SerializeField] private VehicleWheel[] wheels;
 
     [Header("Steering")]
     [Tooltip("Pivoting front axle (turntable). Front wheel mounts must be its children.")]
@@ -34,7 +34,7 @@ public sealed class Wagon : NetworkBehaviour
     [SerializeField] private float maxReverseSpeed = 2.5f;
 
     [Header("Body")]
-    [Tooltip("Center of mass relative to the wagon root. Lower = harder to tip.")]
+    [Tooltip("Center of mass relative to the vehicle root. Lower = harder to tip.")]
     [SerializeField] private Vector3 centerOfMass = new Vector3(0f, -0.2f, 0f);
     [SerializeField] private float maxAngularVelocity = 7f;
 
@@ -52,7 +52,7 @@ public sealed class Wagon : NetworkBehaviour
         0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
     public Rigidbody Body => _rb;
-    public WagonWheel[] Wheels => wheels;
+    public VehicleWheel[] Wheels => wheels;
 
     private Rigidbody _rb;
     private float _steerTarget;
@@ -120,7 +120,7 @@ public sealed class Wagon : NetworkBehaviour
     // SERVER API
     // ============================================================
 
-    /// <summary>Push/pull the wagon at a world point (e.g. where a player's hands are).</summary>
+    /// <summary>Push/pull the vehicle at a world point (e.g. where a player's hands are).</summary>
     public void ServerApplyForce(Vector3 force, Vector3 worldPoint)
     {
         if (!IsServer) return;
@@ -140,7 +140,7 @@ public sealed class Wagon : NetworkBehaviour
         Brake.Value = Mathf.Clamp01(amount);
     }
 
-    /// <summary>Driver controls from VehicleSeats. Throttle/steer are -1..1.</summary>
+    /// <summary>Driver controls from VehicleSeating. Throttle/steer are -1..1.</summary>
     public void ServerSetDriverInput(float throttle, float steer, bool brake)
     {
         if (!IsServer) return;
@@ -179,7 +179,7 @@ public sealed class Wagon : NetworkBehaviour
             w.DriveForce = w.IsDriven ? perWheel : 0f;
     }
 
-    /// <summary>True if every wheel is loaded but the wagon isn't moving (e.g. stuck in mud).</summary>
+    /// <summary>True if every wheel is loaded but the vehicle isn't moving (e.g. stuck in mud).</summary>
     public bool IsStuck(float speedThreshold = 0.05f)
     {
         if (_rb.linearVelocity.sqrMagnitude > speedThreshold * speedThreshold) return false;

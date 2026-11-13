@@ -10,7 +10,7 @@ using UnityEngine;
 /// </summary>
 [DefaultExecutionOrder(-50)]
 [RequireComponent(typeof(PlayerState))]
-public sealed class PlayerSeatController : NetworkBehaviour
+public sealed class PlayerSeating : NetworkBehaviour
 {
     [Tooltip("Driver input sends per second")]
     [SerializeField] private float inputSendRate = 20f;
@@ -19,7 +19,7 @@ public sealed class PlayerSeatController : NetworkBehaviour
     private CharacterController _cc;
     private PlayerCameraController _camera;
 
-    private VehicleSeats _vehicle;
+    private VehicleSeating _vehicle;
     private Rigidbody _vehicleBody;
     private VehicleSeat _seat;
 
@@ -73,11 +73,12 @@ public sealed class PlayerSeatController : NetworkBehaviour
     }
 
     /// <summary>
-    /// Keys: A/D as given. Camera (Halo-style): steer toward where the camera looks,
-    /// reversed when backing up so the rear swings toward the camera.
+    /// Keys: A/D as given. 
+    /// Camera (Halo-style): steer toward where the camera looks, reversed when backing up so the rear swings toward the camera.
     /// </summary>
     private float ComputeSteer()
     {
+        // Return 
         if (_seat.Steering == VehicleSeat.SteerMode.Keys || _camera == null)
             return _steer;
 
@@ -116,10 +117,10 @@ public sealed class PlayerSeatController : NetworkBehaviour
     private void ResolveSeat()
     {
         int index = _state.SeatIndex.Value;
-        VehicleSeats vehicle = null;
+        VehicleSeating vehicle = null;
 
         if (index >= 0 && _state.SeatVehicle.Value.TryGet(out NetworkObject obj) && obj != null)
-            vehicle = obj.GetComponent<VehicleSeats>();
+            vehicle = obj.GetComponent<VehicleSeating>();
 
         VehicleSeat seat = vehicle != null ? vehicle.GetSeat(index) : null;
         if (seat == _seat) return;
@@ -179,7 +180,7 @@ public sealed class PlayerSeatController : NetworkBehaviour
     private void ExitServerRpc()
     {
         if (_state.SeatVehicle.Value.TryGet(out NetworkObject obj) && obj != null
-            && obj.TryGetComponent(out VehicleSeats vehicle))
+            && obj.TryGetComponent(out VehicleSeating vehicle))
         {
             vehicle.ServerExit(_state);
         }

@@ -4,8 +4,8 @@ using UnityEngine;
 /// <summary>
 /// Synced player values that other machines need.
 /// - Movement and aim: written by the OWNER (PlayerMotor), read by everyone.
-/// - Grabbed object: written by the SERVER (PlayerGrabController), read by everyone.
-/// Remote clients read these to drive animation and IK.
+/// - Held object and vehicle seat: written by the SERVER, read by everyone.
+/// Remote clients read these to drive animation and head look.
 /// </summary>
 [DisallowMultipleComponent]
 public sealed class PlayerState : NetworkBehaviour
@@ -26,10 +26,10 @@ public sealed class PlayerState : NetworkBehaviour
     public readonly NetworkVariable<float> AimYaw = new(0f, Everyone, Owner);
     public readonly NetworkVariable<float> AimPitch = new(0f, Everyone, Owner);
 
-    // ---- Equipment (server writes) ----
-    public readonly NetworkVariable<NetworkObjectReference> GrabbedObject = new(default, Everyone, Server);
+    // ---- Held object (server writes; see PlayerInteractor) ----
+    public readonly NetworkVariable<NetworkObjectReference> HeldObject = new(default, Everyone, Server);
 
-    // ---- Vehicle seat (server writes) ----
+    // ---- Vehicle seat (server writes; see VehicleSeating) ----
     public readonly NetworkVariable<NetworkObjectReference> SeatVehicle = new(default, Everyone, Server);
     public readonly NetworkVariable<int> SeatIndex = new(-1, Everyone, Server);
 
@@ -40,16 +40,16 @@ public sealed class PlayerState : NetworkBehaviour
     public bool IsSeated => SeatIndex.Value >= 0;
 
     // ---- Server-only API ----
-    public void SetGrabbedObjectServer(NetworkObject grabbedObj)
+    public void SetHeldObjectServer(NetworkObject heldObj)
     {
         if (!IsServer) return;
-        GrabbedObject.Value = grabbedObj != null ? new NetworkObjectReference(grabbedObj) : default;
+        HeldObject.Value = heldObj != null ? new NetworkObjectReference(heldObj) : default;
     }
 
-    public void ClearGrabbedObjectServer()
+    public void ClearHeldObjectServer()
     {
         if (!IsServer) return;
-        GrabbedObject.Value = default;
+        HeldObject.Value = default;
     }
 
     public void SetSeatServer(NetworkObject vehicle, int seatIndex)

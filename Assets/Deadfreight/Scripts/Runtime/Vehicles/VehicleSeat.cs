@@ -4,16 +4,25 @@ using UnityEngine;
 /// A seat on a vehicle. Place on an empty transform:
 ///   - Position = where the seated player's FEET (player root) go
 ///   - +Z (forward) = the way the player faces
-/// Listed in VehicleSeats on the vehicle root.
+/// Listed in VehicleSeating on the vehicle root.
+/// Contains no MonoBehavior lifecycle methods other than DrawGizmos for debugging.
 /// </summary>
 public sealed class VehicleSeat : MonoBehaviour
 {
-    public enum SeatRole { Driver, Passenger }
+    public enum SeatRole 
+    { 
+        Driver, 
+        Passenger 
+    }
     public enum SteerMode
     {
-        /// <summary>Halo-style: the vehicle steers toward where the camera looks. W/S = throttle.</summary>
+        /// <summary>
+        /// Halo-style: the vehicle steers toward where the camera looks. W/S = throttle.
+        /// </summary>
         Camera,
-        /// <summary>A/D steer directly.</summary>
+        /// <summary>
+        /// A/D steer directly.
+        /// </summary>
         Keys
     }
 
@@ -22,6 +31,7 @@ public sealed class VehicleSeat : MonoBehaviour
     [Tooltip("Where the player is placed when they get out. Defaults to the seat itself.")]
     [SerializeField] private Transform exitPoint;
 
+    [Header("First-Person Camera")]
     [Tooltip("How far the seated player can turn their head left/right from the seat's forward (degrees)")]
     [Range(10f, 180f)][SerializeField] private float yawLimit = 120f;
 
@@ -41,6 +51,7 @@ public sealed class VehicleSeat : MonoBehaviour
     [Tooltip("Camera mode: how far (degrees) the camera must be off the vehicle's heading for full lock")]
     [SerializeField] private float cameraSteerFullAngle = 30f;
 
+    // Public Accessors
     public SeatRole Role => role;
     public Transform ExitPoint => exitPoint != null ? exitPoint : transform;
     public float YawLimit => yawLimit;
@@ -49,7 +60,9 @@ public sealed class VehicleSeat : MonoBehaviour
     public SteerMode Steering => steerMode;
     public float CameraSteerFullAngle => cameraSteerFullAngle;
 
-    /// <summary>The vehicle this seat belongs to (root with VehicleSeats).</summary>
+    /// <summary>
+    /// The vehicle this seat belongs to (root with VehicleSeating).
+    /// </summary>
     public Transform Vehicle => _vehicle != null ? _vehicle : (_vehicle = FindVehicleRoot());
 
     /// <summary>World point the third-person camera orbits.</summary>
@@ -61,11 +74,13 @@ public sealed class VehicleSeat : MonoBehaviour
 
     private Transform FindVehicleRoot()
     {
-        var seats = GetComponentInParent<VehicleSeats>();
+        var seats = GetComponentInParent<VehicleSeating>();
         return seats != null ? seats.transform : transform.root;
     }
 
-    /// <summary>Rotation the seated player's view is relative to.</summary>
+    /// <summary>
+    /// Rotation the seated player's view is relative to.
+    /// </summary>
     public Quaternion ViewReference =>
         inheritTilt ? transform.rotation : Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
 

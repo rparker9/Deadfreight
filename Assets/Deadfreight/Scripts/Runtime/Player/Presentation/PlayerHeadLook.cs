@@ -4,10 +4,10 @@ using UnityEngine.Animations.Rigging;
 
 /// <summary>
 /// CLIENT-ONLY (Non-Owner): Makes remote players' heads look where they're aiming.
-/// Arms are handled by animation poses (see PlayerAnimationClient), not IK.
+/// Arms are handled by animation poses (see PlayerAnimator), not IK.
 /// </summary>
 [RequireComponent(typeof(PlayerState))]
-public sealed class PlayerIKClient : NetworkBehaviour
+public sealed class PlayerHeadLook : NetworkBehaviour
 {
     [Header("Rig")]
     [Tooltip("Rig containing a Multi-Aim constraint on the head/neck that targets Head Aim Target")]

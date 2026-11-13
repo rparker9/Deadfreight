@@ -1,14 +1,14 @@
 using UnityEngine;
 
 /// <summary>
-/// One wagon wheel: raycast suspension + tire forces. Driven by Wagon (not self-updating).
+/// One vehicle wheel: raycast suspension + tire forces. Driven by Vehicle (not self-updating).
 ///
 /// Place this on an empty "mount" transform where the wheel attaches to the chassis:
-///   - +Z (forward) = rolling direction (Wagon turns the front axle for steering)
+///   - +Z (forward) = rolling direction (Vehicle turns the front axle for steering)
 ///   - The wheel hangs below the mount by up to (suspensionTravel + radius)
 /// The wheel mesh goes in "visual" (a child), with its axle along local X.
 /// </summary>
-public sealed class WagonWheel : MonoBehaviour
+public sealed class VehicleWheel : MonoBehaviour
 {
     [Header("Geometry")]
     [SerializeField] private float radius = 0.4f;
@@ -45,10 +45,10 @@ public sealed class WagonWheel : MonoBehaviour
     /// <summary>Force the wheel is carrying right now (N). Useful for "stuck" checks, sounds, dust.</summary>
     public float Load { get; private set; }
     /// <summary>Surface under the wheel (null = default).</summary>
-    public WagonSurface Surface { get; private set; }
+    public GroundSurface Surface { get; private set; }
     public float Radius => radius;
     public bool IsDriven => isDriven;
-    /// <summary>Engine force for this wheel (N), set by Wagon each physics step.</summary>
+    /// <summary>Engine force for this wheel (N), set by Vehicle each physics step.</summary>
     public float DriveForce { get; set; }
 
     private readonly RaycastHit[] _hits = new RaycastHit[8];
@@ -70,7 +70,7 @@ public sealed class WagonWheel : MonoBehaviour
 
     /// <summary>
     /// Raycast suspension; on the server also applies forces to the chassis.
-    /// massShare = how much of the wagon's mass this wheel is responsible for stopping (mass / wheel count).
+    /// massShare = how much of the vehicle's mass this wheel is responsible for stopping (mass / wheel count).
     /// </summary>
     public void Simulate(Rigidbody rb, float massShare, float brake, float dt, bool applyForces)
     {
@@ -95,7 +95,7 @@ public sealed class WagonWheel : MonoBehaviour
 
         float suspension = Mathf.Max(0f, compression * spring + compressionSpeed * damper);
         Load = suspension;
-        Surface = WagonSurface.For(_hit.collider);
+        Surface = GroundSurface.For(_hit.collider);
 
         if (!applyForces) return;
 
@@ -130,7 +130,7 @@ public sealed class WagonWheel : MonoBehaviour
         rb.AddForceAtPosition(side * sideForce + forward * (rollForce + drive), _hit.point);
     }
 
-    /// <summary>Ground raycast that ignores the wagon's own colliders.</summary>
+    /// <summary>Ground raycast that ignores the vehicle's own colliders.</summary>
     private bool CastGround(Rigidbody self, Vector3 origin, Vector3 dir, float maxDist, out RaycastHit best)
     {
         best = default;

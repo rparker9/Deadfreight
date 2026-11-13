@@ -6,9 +6,9 @@ using UnityEngine;
 /// Pressing E while looking at the vehicle puts you in the nearest free seat.
 ///
 /// The server decides who sits where, writes it to the player's PlayerState,
-/// and every machine places seated players locally (PlayerSeatController).
+/// and every machine places seated players locally (PlayerSeating).
 /// </summary>
-public sealed class VehicleSeats : Interactable
+public sealed class VehicleSeating : Interactable
 {
     [SerializeField] private VehicleSeat[] seats;
 
@@ -16,9 +16,11 @@ public sealed class VehicleSeats : Interactable
     public NetworkList<ulong> Occupants { get; private set; }
 
     private const ulong Empty = ulong.MaxValue;
-    private Wagon _wagon;
+    private Vehicle _vehicle;
 
     public int SeatCount => seats.Length;
+
+    protected override string DefaultVerb => "Board";
     public VehicleSeat GetSeat(int index) => index >= 0 && index < seats.Length ? seats[index] : null;
 
     // ============================================================
@@ -28,7 +30,7 @@ public sealed class VehicleSeats : Interactable
     private void Awake()
     {
         Occupants = new NetworkList<ulong>();
-        _wagon = GetComponent<Wagon>();
+        _vehicle = GetComponent<Vehicle>();
     }
 
     public override void OnNetworkSpawn()
@@ -52,13 +54,13 @@ public sealed class VehicleSeats : Interactable
     // INTERACTION (E on the vehicle)
     // ============================================================
 
-    public override bool CanInteractLocal(PlayerGrabController player)
+    public override bool CanInteractLocal(PlayerInteractor player)
     {
         var state = player.GetComponent<PlayerState>();
         return state != null && !state.IsSeated && NearestFreeSeat(player.transform.position) >= 0;
     }
 
-    protected override void OnServerInteract(PlayerGrabController player, ulong clientId)
+    protected override void OnServerInteract(PlayerInteractor player, ulong clientId)
     {
         var state = player.GetComponent<PlayerState>();
         if (state == null || state.IsSeated) return;
@@ -66,7 +68,7 @@ public sealed class VehicleSeats : Interactable
         int seat = NearestFreeSeat(player.transform.position);
         if (seat < 0) return;
 
-        player.ServerForceDrop(); // hands must be free to ride
+        player.ServerDrop(); // hands must be free to ride
         Occupants[seat] = clientId;
         state.SetSeatServer(NetworkObject, seat);
     }
@@ -90,13 +92,13 @@ public sealed class VehicleSeats : Interactable
         state.ClearSeatServer();
     }
 
-    /// <summary>Driver input from PlayerSeatController. Ignored unless that client is in a driver seat.</summary>
+    /// <summary>Driver input from PlayerSeating. Ignored unless that client is in a driver seat.</summary>
     public void ServerDriverInput(ulong clientId, float throttle, float steer, bool brake)
     {
-        if (!IsServer || _wagon == null) return;
+        if (!IsServer || _vehicle == null) return;
         if (!IsDriver(clientId)) return;
 
-        _wagon.ServerSetDriverInput(throttle, steer, brake);
+        _vehicle.ServerSetDriverInput(throttle, steer, brake);
     }
 
     // ============================================================
@@ -133,8 +135,8 @@ public sealed class VehicleSeats : Interactable
     private void ReleaseControls()
     {
         // No driver: coast to a stop with the brake on.
-        _wagon?.ServerSetDriverInput(0f, 0f, true);
-        _wagon?.ServerClearDriver();
+        _vehicle?.ServerSetDriverInput(0f, 0f, true);
+        _vehicle?.ServerClearDriver();
     }
 
     private void OnClientDisconnected(ulong clientId)

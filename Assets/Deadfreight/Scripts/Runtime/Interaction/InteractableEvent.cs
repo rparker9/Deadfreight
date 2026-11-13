@@ -10,12 +10,12 @@ using UnityEngine.Events;
 /// 2. Set Verb (e.g., "Press", "Pull", "Activate")
 /// 3. Hook up UnityEvent in inspector (e.g., door.Open(), light.Toggle())
 /// </summary>
-public sealed class InteractableUnityEvent : Interactable
+public sealed class InteractableEvent : Interactable
 {
     [Header("Events")]
     [SerializeField] private UnityEvent onInteract;
 
-    protected override void OnServerInteract(PlayerGrabController player, ulong clientId)
+    protected override void OnServerInteract(PlayerInteractor player, ulong clientId)
     {
         onInteract?.Invoke();
     }
