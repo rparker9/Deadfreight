@@ -7,8 +7,11 @@ using UnityEngine;
 ///
 /// The server decides who sits where, writes it to the player's PlayerState,
 /// and every machine places seated players locally (PlayerSeating).
+///
+/// While a driver is seated, this is the vehicle's control source: it hands the
+/// vehicle the driver's latest input. No driver = the vehicle parks.
 /// </summary>
-public sealed class VehicleSeating : Interactable
+public sealed class VehicleSeating : Interactable, IVehicleControlSource
 {
     [SerializeField] private VehicleSeat[] seats;
 
@@ -17,6 +20,7 @@ public sealed class VehicleSeating : Interactable
 
     private const ulong Empty = ulong.MaxValue;
     private Vehicle _vehicle;
+    private VehicleControls _driverControls;
 
     public int SeatCount => seats.Length;
 
@@ -71,6 +75,9 @@ public sealed class VehicleSeating : Interactable
         player.ServerDrop(); // hands must be free to ride
         Occupants[seat] = clientId;
         state.SetSeatServer(NetworkObject, seat);
+
+        if (seats[seat].Role == VehicleSeat.SeatRole.Driver)
+            TakeControls();
     }
 
     // ============================================================
@@ -95,11 +102,12 @@ public sealed class VehicleSeating : Interactable
     /// <summary>Driver input from PlayerSeating. Ignored unless that client is in a driver seat.</summary>
     public void ServerDriverInput(ulong clientId, float throttle, float steer, bool brake)
     {
-        if (!IsServer || _vehicle == null) return;
-        if (!IsDriver(clientId)) return;
-
-        _vehicle.ServerSetDriverInput(throttle, steer, brake);
+        if (!IsServer || !IsDriver(clientId)) return;
+        _driverControls = new VehicleControls(throttle, steer, brake ? 1f : 0f);
     }
+
+    /// <summary>IVehicleControlSource: called by the vehicle every physics step.</summary>
+    public VehicleControls GetControls() => _driverControls;
 
     // ============================================================
     // HELPERS
@@ -132,11 +140,17 @@ public sealed class VehicleSeating : Interactable
         return best;
     }
 
+    private void TakeControls()
+    {
+        _driverControls = default; // a new driver starts with no input
+        if (_vehicle != null) _vehicle.ServerSetControlSource(this);
+    }
+
     private void ReleaseControls()
     {
-        // No driver: coast to a stop with the brake on.
-        _vehicle?.ServerSetDriverInput(0f, 0f, true);
-        _vehicle?.ServerClearDriver();
+        // No source: the vehicle parks (brake on).
+        _driverControls = default;
+        if (_vehicle != null) _vehicle.ServerClearControlSource(this);
     }
 
     private void OnClientDisconnected(ulong clientId)

@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c8f3b44a36b64476a165d822e7530254, type: 3}
+  m_Name: WagonWheelProfile
+  m_EditorClassIdentifier: Assembly-CSharp::WheelProfile
+  radius: 0.4
+  suspensionTravel: 0.08
+  spring: 5000
+  damper: 1200
+  lateralFriction: 1.2
+  rollingResistance: 0.03
+  brakeFriction: 0.8
+  groundMask:
+    serializedVersion: 2
+    m_Bits: 1

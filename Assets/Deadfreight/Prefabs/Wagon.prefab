@@ -537,6 +537,9 @@ GameObject:
   - component: {fileID: 7787504688104751727}
   - component: {fileID: 8206477856362408139}
   - component: {fileID: 1679213736212943939}
+  - component: {fileID: 2434624667251425261}
+  - component: {fileID: 7768220147044556662}
+  - component: {fileID: 4534104129618912850}
   m_Layer: 0
   m_Name: Wagon
   m_TagString: Untagged
@@ -692,24 +695,14 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4dd6d0dee6711f942a7f550cad58851a, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Wagon
+  m_EditorClassIdentifier: Assembly-CSharp::Vehicle
   ShowTopMostFoldoutHeaderGroup: 1
-  wheels:
-  - {fileID: 3949047300699834213}
-  - {fileID: 8928248117709353103}
-  - {fileID: 4964437342601092676}
-  - {fileID: 8863975164609669006}
-  frontAxle: {fileID: 5076293386212617008}
-  maxSteerAngle: 35
-  steerSpeed: 90
-  engineForce: 1800
-  reverseForce: 700
-  maxForwardSpeed: 7
-  maxReverseSpeed: 2.5
   centerOfMass: {x: 0, y: 0.55, z: 0}
   maxAngularVelocity: 7
-  debugControls: 1
-  debugPushForce: 1000
+  impactSpeedThreshold: 3
+  tipAngle: 60
+  stuckSpeed: 0.05
+
 --- !u!114 &1679213736212943939
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -772,20 +765,12 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4ba18478830fa364fae138b2ead99d58, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::WagonWheel
-  radius: 0.4
-  suspensionTravel: 0.08
+  m_EditorClassIdentifier: Assembly-CSharp::VehicleWheel
+  profile: {fileID: 11400000, guid: 760023d09df84031b75c1f47d6b162c7, type: 2}
   visual: {fileID: 7456234532648190053}
-  spring: 5000
-  damper: 1200
-  lateralFriction: 1.2
-  rollingResistance: 0.03
   isDriven: 0
   hasBrake: 0
-  brakeFriction: 0.8
-  groundMask:
-    serializedVersion: 2
-    m_Bits: 1
+
 --- !u!1 &3683194105152472180
 GameObject:
   m_ObjectHideFlags: 0
@@ -861,20 +846,12 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4ba18478830fa364fae138b2ead99d58, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::WagonWheel
-  radius: 0.4
-  suspensionTravel: 0.08
+  m_EditorClassIdentifier: Assembly-CSharp::VehicleWheel
+  profile: {fileID: 11400000, guid: 760023d09df84031b75c1f47d6b162c7, type: 2}
   visual: {fileID: 492593253371329108}
-  spring: 5000
-  damper: 1200
-  lateralFriction: 1.2
-  rollingResistance: 0.03
   isDriven: 1
   hasBrake: 1
-  brakeFriction: 0.8
-  groundMask:
-    serializedVersion: 2
-    m_Bits: 1
+
 --- !u!1 &4925976785869748019
 GameObject:
   m_ObjectHideFlags: 0
@@ -1041,20 +1018,12 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4ba18478830fa364fae138b2ead99d58, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::WagonWheel
-  radius: 0.4
-  suspensionTravel: 0.08
+  m_EditorClassIdentifier: Assembly-CSharp::VehicleWheel
+  profile: {fileID: 11400000, guid: 760023d09df84031b75c1f47d6b162c7, type: 2}
   visual: {fileID: 5981810336736221988}
-  spring: 5000
-  damper: 1200
-  lateralFriction: 1.2
-  rollingResistance: 0.03
   isDriven: 0
   hasBrake: 0
-  brakeFriction: 0.8
-  groundMask:
-    serializedVersion: 2
-    m_Bits: 1
+
 --- !u!1 &7152942385847203552
 GameObject:
   m_ObjectHideFlags: 0
@@ -1186,20 +1155,12 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4ba18478830fa364fae138b2ead99d58, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::WagonWheel
-  radius: 0.4
-  suspensionTravel: 0.08
+  m_EditorClassIdentifier: Assembly-CSharp::VehicleWheel
+  profile: {fileID: 11400000, guid: 760023d09df84031b75c1f47d6b162c7, type: 2}
   visual: {fileID: 5702903244721511412}
-  spring: 5000
-  damper: 1200
-  lateralFriction: 1.2
-  rollingResistance: 0.03
   isDriven: 1
   hasBrake: 1
-  brakeFriction: 0.8
-  groundMask:
-    serializedVersion: 2
-    m_Bits: 1
+
 --- !u!1 &7994439417069270741
 GameObject:
   m_ObjectHideFlags: 0
@@ -1296,3 +1257,50 @@ Transform:
   m_Children: []
   m_Father: {fileID: 7505429925451649877}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2434624667251425261
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3430703773991628202}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3e7861f1d0fb4e60856507a652d52f54, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VehicleSteering
+  axle: {fileID: 5076293386212617008}
+  maxSteerAngle: 35
+  steerSpeed: 200
+
+--- !u!114 &7768220147044556662
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3430703773991628202}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a8c9e26c81f345f28e6dfe6fd5e622e4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VehicleEngine
+  forwardForce: 1800
+  reverseForce: 700
+  maxForwardSpeed: 7
+  maxReverseSpeed: 2.5
+
+--- !u!114 &4534104129618912850
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3430703773991628202}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f930ce8a3cde408fbf100c249c804695, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VehicleBrakes
+  response: 0
+
