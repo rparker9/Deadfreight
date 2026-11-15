@@ -1,3 +1,5 @@
+using NUnit.Framework;
+using System.Collections;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -55,15 +57,19 @@ public sealed class VehicleDebugOverlay : MonoBehaviour
 
     private static Vehicle PickTarget()
     {
-        // The vehicle the local player is sitting in.
         var nm = NetworkManager.Singleton;
+
+        // If the local player is in a vehicle, use that for the debug overlay.
         if (nm != null && nm.LocalClient?.PlayerObject != null)
         {
+            // If the player is sitting in a vehicle, use that.
             var seating = nm.LocalClient.PlayerObject.GetComponent<PlayerSeating>();
             if (seating != null && seating.CurrentSeat != null)
             {
+                // Get the vehicle from the seat's parent.
                 var v = seating.CurrentSeat.GetComponentInParent<Vehicle>();
-                if (v != null) return v;
+                if (v != null) 
+                    return v;
             }
         }
 
@@ -73,7 +79,9 @@ public sealed class VehicleDebugOverlay : MonoBehaviour
 
         Vehicle best = null;
         float bestDist = float.MaxValue;
-        foreach (var v in FindObjectsByType<Vehicle>(FindObjectsSortMode.None))
+
+        Vehicle[] vehicles = Object.FindObjectsByType<Vehicle>();
+        foreach (var v in vehicles)
         {
             if (!v.IsSpawned) continue;
             float d = (v.transform.position - from).sqrMagnitude;

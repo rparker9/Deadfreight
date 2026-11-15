@@ -98,8 +98,9 @@ public sealed class PlayerAnimator : NetworkBehaviour
         _isCrouchingHash = Animator.StringToHash(isCrouchingParam);
         _isSprintingHash = Animator.StringToHash(isSprintingParam);
         _holdPoseHash = Animator.StringToHash(holdPoseParam);
-        _hasHoldPose = HasParameter(holdPoseParam);
         _isSeatedHash = Animator.StringToHash(isSeatedParam);
+
+        _hasHoldPose = HasParameter(holdPoseParam);
         _hasIsSeated = HasParameter(isSeatedParam);
     }
 
@@ -114,6 +115,8 @@ public sealed class PlayerAnimator : NetworkBehaviour
         bool hasJumping = HasParameter(isJumpingParam);
         bool hasCrouching = HasParameter(isCrouchingParam);
         bool hasSprinting = HasParameter(isSprintingParam);
+        bool hasHoldPose = HasParameter(holdPoseParam);
+        bool hasIsSeated = HasParameter(isSeatedParam);
 
         if (!hasSpeed) Debug.LogError($"[PlayerAnimator] Animator missing parameter: {moveSpeedParam}");
         if (!hasMoveX) Debug.LogError($"[PlayerAnimator] Animator missing parameter: {moveXParam}");
@@ -122,8 +125,15 @@ public sealed class PlayerAnimator : NetworkBehaviour
         if (!hasJumping) Debug.LogWarning($"[PlayerAnimator] Animator missing parameter: {isJumpingParam}");
         if (!hasCrouching) Debug.LogWarning($"[PlayerAnimator] Animator missing parameter: {isCrouchingParam}");
         if (!hasSprinting) Debug.LogWarning($"[PlayerAnimator] Animator missing parameter: {isSprintingParam}");
+        if (!hasHoldPose) Debug.LogWarning($"[PlayerAnimator] Animator missing parameter: {holdPoseParam}");
+        if (!hasIsSeated) Debug.LogWarning($"[PlayerAnimator] Animator missing parameter: {isSeatedParam}");
     }
 
+    /// <summary>
+    /// Determines whether the animator has a parameter with the specified name.
+    /// </summary>
+    /// <param name="paramName">The name of the parameter to find.</param>
+    /// <returns>true if the animator has a parameter with the specified name; otherwise, false.</returns>
     private bool HasParameter(string paramName)
     {
         if (_animator == null) return false;
@@ -138,8 +148,8 @@ public sealed class PlayerAnimator : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
-        // Owner: hide character model (first person). Stays enabled only to show it
-        // again while in a third-person vehicle seat (see LateUpdate).
+        // Owner: hide character model (first person).
+        // Stays enabled only to show it again while in a third-person vehicle seat (see LateUpdate).
         if (IsOwner)
         {
             SetRenderersVisible(false);
@@ -147,7 +157,7 @@ public sealed class PlayerAnimator : NetworkBehaviour
             return;
         }
 
-        // Non-owner: subscribe to state changes
+        // Non-owner: subscribe to state changes to drive animator parameters.
         _state.MoveInput.OnValueChanged += OnMoveInputChanged;
         _state.IsGrounded.OnValueChanged += OnGroundedChanged;
         _state.IsJumping.OnValueChanged += OnJumpingChanged;
@@ -205,6 +215,18 @@ public sealed class PlayerAnimator : NetworkBehaviour
             _animator.SetBool(_isSprintingHash, curr);
     }
 
+    private void OnHoldPoseChanged(int prev, int curr)
+    {
+        if (_animator != null && _hasHoldPose)
+            _animator.SetInteger(_holdPoseHash, curr);
+    }
+
+    private void OnIsSeatedChanged(bool prev, bool curr)
+    {
+        if (_animator != null && _hasIsSeated)
+            _animator.SetBool(_isSeatedHash, curr);
+    }
+
     // ============================================================
     // UPDATE
     // ============================================================
@@ -213,6 +235,7 @@ public sealed class PlayerAnimator : NetworkBehaviour
 
     private void LateUpdate()
     {
+        // Owner: show our own body (seated) while the camera is in third person.
         if (IsOwner)
         {
             UpdateOwnerThirdPerson();
@@ -240,7 +263,9 @@ public sealed class PlayerAnimator : NetworkBehaviour
         _animator.SetInteger(_holdPoseHash, holding ? 1 : 0);
     }
 
-    /// <summary>Owner: show our own body (seated) while the camera is in third person.</summary>
+    /// <summary>
+    /// Owner: show our own body (seated) while the camera is in third person.
+    /// </summary>
     private void UpdateOwnerThirdPerson()
     {
         bool show = _seat != null && _seat.CurrentSeat != null && _seat.CurrentSeat.ThirdPerson;

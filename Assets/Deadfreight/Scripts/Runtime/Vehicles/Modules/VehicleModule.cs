@@ -37,6 +37,7 @@ public abstract class VehicleModule : MonoBehaviour
 /// <summary>Step order for modules. Leave gaps so new modules can slot in between.</summary>
 public static class VehicleModuleOrder
 {
+    public const int Hitch = 50;
     public const int Steering = 100;
     public const int Power = 200;
     public const int Brakes = 300;

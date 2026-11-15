@@ -139,6 +139,12 @@ MonoBehaviour:
   exitPoint: {fileID: 4398756946515265718}
   yawLimit: 120
   inheritTilt: 1
+  thirdPerson: 1
+  cameraFocus: {fileID: 0}
+  cameraHeight: 2
+  cameraDistance: 6
+  steerMode: 0
+  cameraSteerFullAngle: 30
 --- !u!1 &1551610381322305795
 GameObject:
   m_ObjectHideFlags: 0
@@ -490,6 +496,12 @@ MonoBehaviour:
   exitPoint: {fileID: 2382724852844619309}
   yawLimit: 120
   inheritTilt: 1
+  thirdPerson: 1
+  cameraFocus: {fileID: 0}
+  cameraHeight: 2
+  cameraDistance: 6
+  steerMode: 0
+  cameraSteerFullAngle: 30
 --- !u!1 &3366009551489185906
 GameObject:
   m_ObjectHideFlags: 0
@@ -556,7 +568,7 @@ Transform:
   m_GameObject: {fileID: 3430703773991628202}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 4.25}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -606,14 +618,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 407650817
+  GlobalObjectIdHash: 3692914260
   InScenePlacedSourceGlobalObjectIdHash: 0
   m_InScenePlacedDisabledByDefault: 0
   DeferredDespawnTick: 0
   Ownership: 1
   AlwaysReplicateAsRoot: 0
   SynchronizeTransform: 1
-  m_InScenePlaced: 1
+  m_InScenePlaced: 0
   ActiveSceneSynchronization: 0
   SceneMigrationSynchronization: 0
   SpawnWithObservers: 1
@@ -702,7 +714,6 @@ MonoBehaviour:
   impactSpeedThreshold: 3
   tipAngle: 60
   stuckSpeed: 0.05
-
 --- !u!114 &1679213736212943939
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -721,6 +732,50 @@ MonoBehaviour:
   seats:
   - {fileID: 2262851955697819312}
   - {fileID: 4212663566235344634}
+--- !u!114 &2434624667251425261
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3430703773991628202}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3e7861f1d0fb4e60856507a652d52f54, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VehicleSteering
+  axle: {fileID: 5076293386212617008}
+  maxSteerAngle: 35
+  steerSpeed: 200
+--- !u!114 &7768220147044556662
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3430703773991628202}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a8c9e26c81f345f28e6dfe6fd5e622e4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VehicleEngine
+  forwardForce: 1800
+  reverseForce: 700
+  maxForwardSpeed: 7
+  maxReverseSpeed: 2.5
+--- !u!114 &4534104129618912850
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3430703773991628202}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f930ce8a3cde408fbf100c249c804695, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VehicleBrakes
+  response: 0
 --- !u!1 &3480582597879332454
 GameObject:
   m_ObjectHideFlags: 0
@@ -770,7 +825,6 @@ MonoBehaviour:
   visual: {fileID: 7456234532648190053}
   isDriven: 0
   hasBrake: 0
-
 --- !u!1 &3683194105152472180
 GameObject:
   m_ObjectHideFlags: 0
@@ -851,7 +905,6 @@ MonoBehaviour:
   visual: {fileID: 492593253371329108}
   isDriven: 1
   hasBrake: 1
-
 --- !u!1 &4925976785869748019
 GameObject:
   m_ObjectHideFlags: 0
@@ -1023,7 +1076,6 @@ MonoBehaviour:
   visual: {fileID: 5981810336736221988}
   isDriven: 0
   hasBrake: 0
-
 --- !u!1 &7152942385847203552
 GameObject:
   m_ObjectHideFlags: 0
@@ -1160,7 +1212,6 @@ MonoBehaviour:
   visual: {fileID: 5702903244721511412}
   isDriven: 1
   hasBrake: 1
-
 --- !u!1 &7994439417069270741
 GameObject:
   m_ObjectHideFlags: 0
@@ -1257,50 +1308,3 @@ Transform:
   m_Children: []
   m_Father: {fileID: 7505429925451649877}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2434624667251425261
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3430703773991628202}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3e7861f1d0fb4e60856507a652d52f54, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::VehicleSteering
-  axle: {fileID: 5076293386212617008}
-  maxSteerAngle: 35
-  steerSpeed: 200
-
---- !u!114 &7768220147044556662
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3430703773991628202}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a8c9e26c81f345f28e6dfe6fd5e622e4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::VehicleEngine
-  forwardForce: 1800
-  reverseForce: 700
-  maxForwardSpeed: 7
-  maxReverseSpeed: 2.5
-
---- !u!114 &4534104129618912850
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3430703773991628202}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f930ce8a3cde408fbf100c249c804695, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::VehicleBrakes
-  response: 0
-
