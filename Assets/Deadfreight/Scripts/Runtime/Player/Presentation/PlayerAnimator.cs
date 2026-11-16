@@ -2,15 +2,24 @@ using Unity.Netcode;
 using UnityEngine;
 
 /// <summary>
-/// Presentation only: drives the character Animator from PlayerState.
-/// Remote players: always. Owner: only while seated in third person (otherwise the body is hidden).
+/// Presentation only: drives the character Animator and body rotation from PlayerState.
+///
+/// - Remote players (everyone you see): full locomotion, every frame.
+/// - Your own player: body hidden (first person), except in a third-person vehicle seat,
+///   where it's shown sitting and facing the seat.
+///
+/// Everything is read from synced state every frame, so late joiners are correct immediately.
+/// Missing optional Animator parameters are skipped quietly.
 /// </summary>
 [RequireComponent(typeof(PlayerState))]
 public sealed class PlayerAnimator : NetworkBehaviour
 {
     [Header("Character Model")]
-    [Tooltip("Character visual root - rotates to match body rotation")]
+    [Tooltip("Character visual root: rotates to face the aim direction (or the seat)")]
     [SerializeField] private Transform characterModelRoot;
+
+    [Tooltip("Body renderers, hidden for the owner in first person")]
+    [SerializeField] private Renderer[] characterRenderers;
 
     [Header("Animator Parameters")]
     [SerializeField] private string moveSpeedParam = "MoveSpeed";
@@ -20,53 +29,35 @@ public sealed class PlayerAnimator : NetworkBehaviour
     [SerializeField] private string isJumpingParam = "IsJumping";
     [SerializeField] private string isCrouchingParam = "IsCrouching";
     [SerializeField] private string isSprintingParam = "IsSprinting";
-    [Tooltip("Int: 0 = hands free, 1 = carrying. Drives the upper-body pose layer (room for more poses later).")]
+    [Tooltip("Int: 0 = hands free, 1 = carrying")]
     [SerializeField] private string holdPoseParam = "HoldPose";
     [Tooltip("Bool: true while in a vehicle seat")]
     [SerializeField] private string isSeatedParam = "IsSeated";
 
-    [Header("Animation Speed Mapping")]
-    [Tooltip("How to map actual speed to animation speed")]
+    [Header("Tuning")]
+    [Tooltip("Speed (m/s) that counts as a walk. MoveSpeed = speed / this: 0 idle, 1 walk, up to 2 run.")]
     [SerializeField] private float walkSpeedReference = 4.5f;
-
-    [Header("Smoothing")]
-    [Tooltip("Smooth speed changes (0 = instant)")]
+    [Tooltip("Smooth speed changes (seconds, 0 = instant)")]
     [SerializeField] private float speedSmoothTime = 0.1f;
-
-    [Tooltip("Smooth directional input (0 = instant)")]
+    [Tooltip("Smooth movement direction (seconds, 0 = instant)")]
     [SerializeField] private float inputDampTime = 0.1f;
-
-    [Tooltip("Body rotation speed (0 = instant)")]
+    [Tooltip("Body turn speed (degrees/second, 0 = instant)")]
     [SerializeField] private float bodyRotationSpeed = 720f;
 
-    [Header("Visibility")]
-    [Tooltip("Renderers to hide for owner (FPS view)")]
-    [SerializeField] private Renderer[] characterRenderers;
+    private const float Epsilon = 0.001f;
 
     private Animator _animator;
     private PlayerState _state;
-    private PlayerSeating _seat;
-    private int _isSeatedHash;
-    private bool _hasIsSeated;
+    private PlayerSeating _seating;
 
-    // Cached parameter hashes
-    private int _moveSpeedHash;
-    private int _moveXHash;
-    private int _moveYHash;
-    private int _isGroundedHash;
-    private int _isJumpingHash;
-    private int _isCrouchingHash;
-    private int _isSprintingHash;
-    private int _holdPoseHash;
-    private bool _hasHoldPose;
+    // Parameter hashes (0 = the Animator doesn't have it; skipped)
+    private int _moveSpeed, _moveX, _moveY;
+    private int _isGrounded, _isJumping, _isCrouching, _isSprinting;
+    private int _holdPose, _isSeated;
 
-    // Smoothed values
-    private float _currentSpeed;
+    private float _speed;
     private float _speedVelocity;
-
-    // Target inputs
-    private Vector2 _targetMoveInput;
-    private const float AnimatorFloatEpsilon = 0.001f;
+    private bool _ownerBodyVisible;
 
     // ============================================================
     // LIFECYCLE
@@ -76,365 +67,183 @@ public sealed class PlayerAnimator : NetworkBehaviour
     {
         _animator = GetComponentInChildren<Animator>();
         _state = GetComponent<PlayerState>();
-        _seat = GetComponent<PlayerSeating>();
+        _seating = GetComponent<PlayerSeating>();
 
-        // Verify animator found
         if (_animator == null)
         {
-            Debug.LogError($"[PlayerAnimator] Animator not found on {gameObject.name}! Make sure Animator component is on a child GameObject.");
-        }
-        else
-        {
-            // Verify parameters exist
-            VerifyAnimatorParameters();
+            Debug.LogError($"[PlayerAnimator] No Animator under {name}.", this);
+            return;
         }
 
-        // Cache parameter hashes
-        _moveSpeedHash = Animator.StringToHash(moveSpeedParam);
-        _moveXHash = Animator.StringToHash(moveXParam);
-        _moveYHash = Animator.StringToHash(moveYParam);
-        _isGroundedHash = Animator.StringToHash(isGroundedParam);
-        _isJumpingHash = Animator.StringToHash(isJumpingParam);
-        _isCrouchingHash = Animator.StringToHash(isCrouchingParam);
-        _isSprintingHash = Animator.StringToHash(isSprintingParam);
-        _holdPoseHash = Animator.StringToHash(holdPoseParam);
-        _isSeatedHash = Animator.StringToHash(isSeatedParam);
-
-        _hasHoldPose = HasParameter(holdPoseParam);
-        _hasIsSeated = HasParameter(isSeatedParam);
-    }
-
-    private void VerifyAnimatorParameters()
-    {
-        if (_animator == null) return;
-
-        bool hasSpeed = HasParameter(moveSpeedParam);
-        bool hasMoveX = HasParameter(moveXParam);
-        bool hasMoveY = HasParameter(moveYParam);
-        bool hasGrounded = HasParameter(isGroundedParam);
-        bool hasJumping = HasParameter(isJumpingParam);
-        bool hasCrouching = HasParameter(isCrouchingParam);
-        bool hasSprinting = HasParameter(isSprintingParam);
-        bool hasHoldPose = HasParameter(holdPoseParam);
-        bool hasIsSeated = HasParameter(isSeatedParam);
-
-        if (!hasSpeed) Debug.LogError($"[PlayerAnimator] Animator missing parameter: {moveSpeedParam}");
-        if (!hasMoveX) Debug.LogError($"[PlayerAnimator] Animator missing parameter: {moveXParam}");
-        if (!hasMoveY) Debug.LogError($"[PlayerAnimator] Animator missing parameter: {moveYParam}");
-        if (!hasGrounded) Debug.LogWarning($"[PlayerAnimator] Animator missing parameter: {isGroundedParam}");
-        if (!hasJumping) Debug.LogWarning($"[PlayerAnimator] Animator missing parameter: {isJumpingParam}");
-        if (!hasCrouching) Debug.LogWarning($"[PlayerAnimator] Animator missing parameter: {isCrouchingParam}");
-        if (!hasSprinting) Debug.LogWarning($"[PlayerAnimator] Animator missing parameter: {isSprintingParam}");
-        if (!hasHoldPose) Debug.LogWarning($"[PlayerAnimator] Animator missing parameter: {holdPoseParam}");
-        if (!hasIsSeated) Debug.LogWarning($"[PlayerAnimator] Animator missing parameter: {isSeatedParam}");
-    }
-
-    /// <summary>
-    /// Determines whether the animator has a parameter with the specified name.
-    /// </summary>
-    /// <param name="paramName">The name of the parameter to find.</param>
-    /// <returns>true if the animator has a parameter with the specified name; otherwise, false.</returns>
-    private bool HasParameter(string paramName)
-    {
-        if (_animator == null) return false;
-
-        foreach (var param in _animator.parameters)
-        {
-            if (param.name == paramName)
-                return true;
-        }
-        return false;
+        // Locomotion is required; the rest is optional.
+        _moveSpeed = Param(moveSpeedParam, required: true);
+        _moveX = Param(moveXParam, required: true);
+        _moveY = Param(moveYParam, required: true);
+        _isGrounded = Param(isGroundedParam);
+        _isJumping = Param(isJumpingParam);
+        _isCrouching = Param(isCrouchingParam);
+        _isSprinting = Param(isSprintingParam);
+        _holdPose = Param(holdPoseParam);
+        _isSeated = Param(isSeatedParam);
     }
 
     public override void OnNetworkSpawn()
     {
-        // Owner: hide character model (first person).
-        // Stays enabled only to show it again while in a third-person vehicle seat (see LateUpdate).
         if (IsOwner)
         {
-            SetRenderersVisible(false);
-            _ownerBodyVisible = false;
+            SetBodyVisible(false); // first person
             return;
         }
 
-        // Non-owner: subscribe to state changes to drive animator parameters.
-        _state.MoveInput.OnValueChanged += OnMoveInputChanged;
-        _state.IsGrounded.OnValueChanged += OnGroundedChanged;
-        _state.IsJumping.OnValueChanged += OnJumpingChanged;
-        _state.IsCrouching.OnValueChanged += OnCrouchingChanged;
-        _state.IsSprinting.OnValueChanged += OnSprintingChanged;
-
-        // Initial sync
-        UpdateAllParameters();
+        // Start from the current state with no smoothing (correct for late joiners).
+        UpdateRemote(instant: true);
     }
-
-    public override void OnNetworkDespawn()
-    {
-        if (!IsOwner)
-        {
-            _state.MoveInput.OnValueChanged -= OnMoveInputChanged;
-            _state.IsGrounded.OnValueChanged -= OnGroundedChanged;
-            _state.IsJumping.OnValueChanged -= OnJumpingChanged;
-            _state.IsCrouching.OnValueChanged -= OnCrouchingChanged;
-            _state.IsSprinting.OnValueChanged -= OnSprintingChanged;
-        }
-    }
-
-    // ============================================================
-    // STATE CHANGE CALLBACKS
-    // ============================================================
-
-    private void OnMoveInputChanged(Vector2 prev, Vector2 curr)
-    {
-        if (_animator == null) return;
-
-        _targetMoveInput = curr;
-    }
-
-    private void OnGroundedChanged(bool prev, bool curr)
-    {
-        if (_animator != null)
-            _animator.SetBool(_isGroundedHash, curr);
-    }
-
-    private void OnJumpingChanged(bool prev, bool curr)
-    {
-        if (_animator != null)
-            _animator.SetBool(_isJumpingHash, curr);
-    }
-
-    private void OnCrouchingChanged(bool prev, bool curr)
-    {
-        if (_animator != null)
-            _animator.SetBool(_isCrouchingHash, curr);
-    }
-
-    private void OnSprintingChanged(bool prev, bool curr)
-    {
-        if (_animator != null)
-            _animator.SetBool(_isSprintingHash, curr);
-    }
-
-    private void OnHoldPoseChanged(int prev, int curr)
-    {
-        if (_animator != null && _hasHoldPose)
-            _animator.SetInteger(_holdPoseHash, curr);
-    }
-
-    private void OnIsSeatedChanged(bool prev, bool curr)
-    {
-        if (_animator != null && _hasIsSeated)
-            _animator.SetBool(_isSeatedHash, curr);
-    }
-
-    // ============================================================
-    // UPDATE
-    // ============================================================
-
-    private bool _ownerBodyVisible;
 
     private void LateUpdate()
     {
-        // Owner: show our own body (seated) while the camera is in third person.
-        if (IsOwner)
-        {
-            UpdateOwnerThirdPerson();
-            return;
-        }
+        if (!IsSpawned || _animator == null) return;
 
-        UpdateMoveInput();
-
-        // Smooth speed for blend tree
-        UpdateSpeed();
-
-        // Rotate character model to match body rotation
-        UpdateBodyRotation();
-
-        // Upper-body pose for holding things, and sitting
-        UpdateHoldPose();
-        UpdateSeated();
+        if (IsOwner) UpdateOwner();
+        else UpdateRemote(instant: false);
     }
 
-    private void UpdateHoldPose()
-    {
-        if (_animator == null || !_hasHoldPose) return;
+    // ============================================================
+    // MODES
+    // ============================================================
 
-        bool holding = _state.HeldObject.Value.TryGet(out NetworkObject held) && held != null;
-        _animator.SetInteger(_holdPoseHash, holding ? 1 : 0);
+    /// <summary>Everyone else: full locomotion from synced state.</summary>
+    private void UpdateRemote(bool instant)
+    {
+        SetMoveDirection(_state.MoveInput.Value, instant);
+        SetSpeed(_state.Speed.Value, instant);
+
+        SetBool(_isGrounded, _state.IsGrounded.Value);
+        SetBool(_isJumping, _state.IsJumping.Value);
+        SetBool(_isCrouching, _state.IsCrouching.Value);
+        SetBool(_isSprinting, _state.IsSprinting.Value);
+
+        ApplyPoses();
+        ApplyBodyRotation(instant);
+    }
+
+    /// <summary>Our own player: only visible (sitting) in a third-person seat.</summary>
+    private void UpdateOwner()
+    {
+        VehicleSeat seat = _seating != null ? _seating.CurrentSeat : null;
+        bool show = seat != null && seat.ThirdPerson;
+
+        if (show != _ownerBodyVisible)
+            SetBodyVisible(show);
+
+        if (!show) return;
+
+        ApplyPoses();
+        ApplyBodyRotation(instant: true);
+    }
+
+    // ============================================================
+    // PIECES
+    // ============================================================
+
+    /// <summary>Direction only (normalized) for a 2D directional blend tree.</summary>
+    private void SetMoveDirection(Vector2 input, bool instant)
+    {
+        if (_moveX == 0 || _moveY == 0) return;
+        Vector2 dir = input.sqrMagnitude > Epsilon * Epsilon ? input.normalized : Vector2.zero;
+
+        if (instant || inputDampTime <= 0f)
+        {
+            _animator.SetFloat(_moveX, dir.x);
+            _animator.SetFloat(_moveY, dir.y);
+        }
+        else
+        {
+            _animator.SetFloat(_moveX, dir.x, inputDampTime, Time.deltaTime);
+            _animator.SetFloat(_moveY, dir.y, inputDampTime, Time.deltaTime);
+        }
+    }
+
+    /// <summary>Speed as a fraction of walking speed: 0 idle, 1 walk, up to 2 run.</summary>
+    private void SetSpeed(float metersPerSecond, bool instant)
+    {
+        if (_moveSpeed == 0) return;
+        float target = Mathf.Clamp(metersPerSecond / Mathf.Max(walkSpeedReference, 0.01f), 0f, 2f);
+
+        if (instant || speedSmoothTime <= 0f)
+        {
+            _speed = target;
+            _speedVelocity = 0f;
+        }
+        else
+        {
+            _speed = Mathf.SmoothDamp(_speed, target, ref _speedVelocity, speedSmoothTime);
+        }
+
+        // Snap tiny values to 0 so the blend tree truly idles.
+        if (_speed < Epsilon)
+        {
+            _speed = 0f;
+            _speedVelocity = 0f;
+        }
+
+        _animator.SetFloat(_moveSpeed, _speed);
     }
 
     /// <summary>
-    /// Owner: show our own body (seated) while the camera is in third person.
+    /// Upper-body pose (carrying) and sitting.
     /// </summary>
-    private void UpdateOwnerThirdPerson()
+    private void ApplyPoses()
     {
-        bool show = _seat != null && _seat.CurrentSeat != null && _seat.CurrentSeat.ThirdPerson;
+        bool holding = _state.HeldObject.Value.TryGet(out NetworkObject held) && held != null;
+        bool seated = _seating != null && _seating.IsSeated;
 
-        if (show != _ownerBodyVisible)
-        {
-            _ownerBodyVisible = show;
-            SetRenderersVisible(show);
-        }
-
-        if (show)
-        {
-            UpdateBodyRotation();
-            UpdateSeated();
-        }
+        if (_holdPose != 0) _animator.SetInteger(_holdPose, holding ? 1 : 0);
+        SetBool(_isSeated, seated);
     }
 
-    private void UpdateSeated()
+    /// <summary>
+    /// Face the seat when seated (no lag), otherwise turn toward the aim direction.
+    /// </summary>
+    private void ApplyBodyRotation(bool instant)
     {
-        if (_animator == null || !_hasIsSeated) return;
-        _animator.SetBool(_isSeatedHash, _seat != null && _seat.IsSeated);
-    }
+        if (characterModelRoot == null) return;
 
-    private void UpdateMoveInput()
-    {
-        if (_animator == null) return;
+        VehicleSeat seat = _seating != null ? _seating.CurrentSeat : null;
+        Quaternion target = seat != null ? seat.transform.rotation : _state.BodyRotation;
 
-        Vector2 v = _targetMoveInput;
-
-        // Snap tiny drift
-        if (Mathf.Abs(v.x) < AnimatorFloatEpsilon) v.x = 0f;
-        if (Mathf.Abs(v.y) < AnimatorFloatEpsilon) v.y = 0f;
-
-        // Direction-only for 2D Freeform Directional
-        if (v.sqrMagnitude > AnimatorFloatEpsilon * AnimatorFloatEpsilon)
-            v = v.normalized;
+        if (seat != null || instant || bodyRotationSpeed <= 0f)
+            characterModelRoot.rotation = target;
         else
-            v = Vector2.zero;
-
-        if (inputDampTime > 0f)
-        {
-            _animator.SetFloat(_moveXHash, v.x, inputDampTime, Time.deltaTime);
-            _animator.SetFloat(_moveYHash, v.y, inputDampTime, Time.deltaTime);
-        }
-        else
-        {
-            _animator.SetFloat(_moveXHash, v.x);
-            _animator.SetFloat(_moveYHash, v.y);
-        }
-    }
-
-    private void UpdateSpeed()
-    {
-        if (_animator == null) return;
-
-        // Get actual speed from state
-        float actualSpeed = _state.Speed.Value;
-
-        // Simple normalized speed (you can adjust this based on your blend tree)
-        // For most blend trees: 0 = idle, 1 = walk, >1 = run
-        float normalizedSpeed = actualSpeed / walkSpeedReference;
-
-        // Clamp to reasonable range
-        normalizedSpeed = Mathf.Clamp(normalizedSpeed, 0f, 2f);
-
-        // Smooth transition
-        if (speedSmoothTime > 0f)
-        {
-            _currentSpeed = Mathf.SmoothDamp(
-                _currentSpeed,
-                normalizedSpeed,
-                ref _speedVelocity,
-                speedSmoothTime);
-        }
-        else
-        {
-            _currentSpeed = normalizedSpeed;
-        }
-
-        // IMPORTANT: snap tiny values to 0 so blend trees truly idle.
-        if (Mathf.Abs(_currentSpeed) < AnimatorFloatEpsilon)
-        {
-            _currentSpeed = 0f;
-            _speedVelocity = 0f; // prevent tiny residual velocity from reintroducing drift
-        }
-
-        _animator.SetFloat(_moveSpeedHash, _currentSpeed);
-    }
-
-    private void UpdateBodyRotation()
-    {
-        if (characterModelRoot == null)
-        {
-            return;
-        }
-
-        // Seated: face the seat. Otherwise: face where the player is aiming.
-        Quaternion targetRotation = _seat != null && _seat.CurrentSeat != null
-            ? _seat.CurrentSeat.transform.rotation
-            : _state.BodyRotation;
-
-        bool seated = _seat != null && _seat.CurrentSeat != null;
-
-        if (bodyRotationSpeed > 0f && !seated)   // seated: stick to the seat, no lag
-        {
             characterModelRoot.rotation = Quaternion.RotateTowards(
-                characterModelRoot.rotation,
-                targetRotation,
-                bodyRotationSpeed * Time.deltaTime);
-        }
-        else
-        {
-            characterModelRoot.rotation = targetRotation;
-        }
-    }
-
-    private void UpdateAllParameters()
-    {
-        if (_animator == null) return;
-
-        Vector2 moveInput = _state.MoveInput.Value;
-        _targetMoveInput = moveInput;
-
-        if (Mathf.Abs(moveInput.x) < AnimatorFloatEpsilon) moveInput.x = 0f;
-        if (Mathf.Abs(moveInput.y) < AnimatorFloatEpsilon) moveInput.y = 0f;
-
-        if (moveInput.sqrMagnitude > AnimatorFloatEpsilon * AnimatorFloatEpsilon)
-            moveInput = moveInput.normalized;
-        else
-            moveInput = Vector2.zero;
-
-        _animator.SetFloat(_moveXHash, moveInput.x);
-        _animator.SetFloat(_moveYHash, moveInput.y);
-
-        // Initialize speed (instant, no smoothing)
-        float actualSpeed = _state.Speed.Value;
-        float normalizedSpeed = actualSpeed / walkSpeedReference;
-        normalizedSpeed = Mathf.Clamp(normalizedSpeed, 0f, 2f);
-
-        _currentSpeed = normalizedSpeed;
-        _speedVelocity = 0f;
-
-        if (Mathf.Abs(_currentSpeed) < AnimatorFloatEpsilon)
-            _currentSpeed = 0f;
-
-        _animator.SetFloat(_moveSpeedHash, _currentSpeed);
-
-        // Initialize body rotation
-        if (characterModelRoot != null)
-            characterModelRoot.rotation = _state.BodyRotation;
+                characterModelRoot.rotation, target, bodyRotationSpeed * Time.deltaTime);
     }
 
     // ============================================================
-    // VISIBILITY
+    // HELPERS
     // ============================================================
 
-    private void SetRenderersVisible(bool visible)
+    private void SetBodyVisible(bool visible)
     {
+        _ownerBodyVisible = visible;
         if (characterRenderers == null) return;
 
-        foreach (var renderer in characterRenderers)
-        {
-            if (renderer != null)
-                renderer.enabled = visible;
-        }
+        foreach (var r in characterRenderers)
+            if (r != null) r.enabled = visible;
     }
 
-    public void SetCharacterVisible(bool visible)
+    private void SetBool(int hash, bool value)
     {
-        SetRenderersVisible(visible);
+        if (hash != 0) _animator.SetBool(hash, value);
+    }
+
+    /// <summary>Hash of a parameter the Animator has, or 0 (skipped) if it doesn't.</summary>
+    private int Param(string paramName, bool required = false)
+    {
+        foreach (var p in _animator.parameters)
+            if (p.name == paramName) return p.nameHash;
+
+        if (required) Debug.LogError($"[PlayerAnimator] Animator is missing required parameter '{paramName}'.", this);
+        else Debug.LogWarning($"[PlayerAnimator] Animator has no '{paramName}' parameter; it will be skipped.", this);
+        return 0;
     }
 }

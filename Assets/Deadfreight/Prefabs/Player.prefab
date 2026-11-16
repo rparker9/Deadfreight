@@ -83,9 +83,9 @@ GameObject:
   - component: {fileID: 5547614053976650160}
   - component: {fileID: 1744349384822415783}
   - component: {fileID: 1260412740578818392}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Player
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -120,7 +120,7 @@ CharacterController:
     m_Bits: 0
   m_ExcludeLayers:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 8
   m_LayerOverridePriority: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
@@ -308,6 +308,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerAnimationClient
   ShowTopMostFoldoutHeaderGroup: 1
   characterModelRoot: {fileID: 5331844159460605588}
+  characterRenderers:
+  - {fileID: 5921295714440028825}
+  - {fileID: 1257339425242580996}
   moveSpeedParam: MoveSpeed
   moveXParam: MoveX
   moveYParam: MoveY
@@ -321,9 +324,6 @@ MonoBehaviour:
   speedSmoothTime: 0.1
   inputDampTime: 0.1
   bodyRotationSpeed: 720
-  characterRenderers:
-  - {fileID: 5921295714440028825}
-  - {fileID: 1257339425242580996}
 --- !u!114 &1744349384822415783
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -342,6 +342,7 @@ MonoBehaviour:
   headAimTarget: {fileID: 8394587369324738337}
   aimDistance: 10
   aimSmoothSpeed: 15
+  blendSpeed: 4
 --- !u!114 &1260412740578818392
 MonoBehaviour:
   m_ObjectHideFlags: 0
