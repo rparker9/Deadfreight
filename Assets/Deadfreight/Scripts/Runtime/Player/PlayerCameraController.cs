@@ -1,3 +1,4 @@
+using System.Collections;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -201,6 +202,14 @@ public sealed class PlayerCameraController : NetworkBehaviour
     // PUBLIC UTILITY API
     // ============================================================
 
+    /// <summary>Turn the view by a yaw amount (e.g. when the ground you stand on turns).</summary>
+    public void AddYaw(float degrees)
+    {
+        if (!IsOwner) return;
+        _yaw = Mathf.Repeat(_yaw + degrees, 360f);
+        UpdateTransforms();
+    }
+
     /// <summary>
     /// Manually set camera angles (useful for cutscenes, respawn, etc.)
     /// </summary>
@@ -257,16 +266,42 @@ public sealed class PlayerCameraController : NetworkBehaviour
         }
 
         dist = Mathf.Max(0.5f, dist - 0.1f);
-        playerCamera.transform.SetPositionAndRotation(focus - dir * dist, Quaternion.LookRotation(dir, Vector3.up));
+        StartCoroutine(LerpCameraPosition(focus - dir * dist, Quaternion.LookRotation(dir, Vector3.up), 0.5f));
     }
 
+    private IEnumerator LerpCameraPosition(Vector3 targetPos, Quaternion targetRot, float duration, bool useLocalPosition = false)
+    {
+        if (playerCamera == null) 
+            yield break;
+        
+        Vector3 startPos = useLocalPosition ? playerCamera.transform.localPosition : playerCamera.transform.position;
+        Quaternion startRot = playerCamera.transform.rotation;
+        
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            if (useLocalPosition)
+                playerCamera.transform.localPosition = Vector3.Lerp(startPos, targetPos, t);
+            else
+                playerCamera.transform.position = Vector3.Lerp(startPos, targetPos, t);
+            playerCamera.transform.rotation = Quaternion.Slerp(startRot, targetRot, t);
+            yield return null;
+        }
+        if (useLocalPosition)
+            playerCamera.transform.localPosition = targetPos;
+        else
+            playerCamera.transform.position = targetPos;
+        playerCamera.transform.rotation = targetRot;
+    }
+    
     /// <summary>Back to the normal first-person camera position.</summary>
     public void ClearThirdPerson()
     {
         if (!_thirdPerson || playerCamera == null) return;
         _thirdPerson = false;
-        playerCamera.transform.localPosition = _firstPersonLocalPos;
-        playerCamera.transform.localRotation = _firstPersonLocalRot;
+        StartCoroutine(LerpCameraPosition(_firstPersonLocalPos, _firstPersonLocalRot, 0.5f, true));
     }
 
     public bool IsThirdPerson => _thirdPerson;

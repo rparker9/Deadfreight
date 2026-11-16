@@ -386,7 +386,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VehicleWheel
   profile: {fileID: 11400000, guid: 760023d09df84031b75c1f47d6b162c7, type: 2}
   visual: {fileID: 6628389418981505830}
-  isDriven: 1
+  isDriven: 0
   hasBrake: 1
 --- !u!1 &2285073886734463464
 GameObject:
@@ -574,7 +574,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VehicleWheel
   profile: {fileID: 11400000, guid: 760023d09df84031b75c1f47d6b162c7, type: 2}
   visual: {fileID: 2589295272585040655}
-  isDriven: 1
+  isDriven: 0
   hasBrake: 1
 --- !u!1 &6284020208352376589
 GameObject:
@@ -1039,9 +1039,9 @@ Rigidbody:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8518768648318453961}
   serializedVersion: 5
-  m_Mass: 50
+  m_Mass: 300
   m_LinearDamping: 0
-  m_AngularDamping: 0.05
+  m_AngularDamping: 0.3
   m_CenterOfMass: {x: 0, y: 0, z: 0}
   m_InertiaTensor: {x: 1, y: 1, z: 1}
   m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
@@ -1055,7 +1055,7 @@ Rigidbody:
   m_ImplicitTensor: 1
   m_UseGravity: 1
   m_IsKinematic: 1
-  m_Interpolate: 0
+  m_Interpolate: 1
   m_Constraints: 0
   m_CollisionDetection: 1
 --- !u!114 &8320124958744624074
@@ -1161,7 +1161,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Vehicle
   ShowTopMostFoldoutHeaderGroup: 1
-  centerOfMass: {x: 0, y: 0.55, z: 0}
+  centerOfMass: {x: 0, y: 0.2, z: 0}
   maxAngularVelocity: 7
   impactSpeedThreshold: 3
   tipAngle: 60
@@ -1198,7 +1198,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bee1190aa4d43634788b2214ab4137fc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VehicleCasterSteering
-  axle: {fileID: 0}
+  axle: {fileID: 4227985326770905727}
   maxSteerAngle: 45
   steerSpeed: 180
   minSpeed: 0.3

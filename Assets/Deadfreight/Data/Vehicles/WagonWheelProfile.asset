@@ -13,10 +13,12 @@ MonoBehaviour:
   m_Name: WagonWheelProfile
   m_EditorClassIdentifier: Assembly-CSharp::WheelProfile
   radius: 0.4
-  suspensionTravel: 0.08
-  spring: 5000
-  damper: 1200
-  lateralFriction: 1.2
+  suspensionTravel: 0.15
+  castRadiusScale: 1
+  spring: 16000
+  damper: 1300
+  tireForceHeight: 0.15
+  lateralFriction: 1
   rollingResistance: 0.03
   brakeFriction: 0.8
   groundMask:

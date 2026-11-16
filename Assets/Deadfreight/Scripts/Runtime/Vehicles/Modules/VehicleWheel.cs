@@ -108,7 +108,9 @@ public sealed class VehicleWheel : VehicleModule
         float driveMax = profile.lateralFriction * grip * Load;
         float drive = Mathf.Clamp(DriveForce, -driveMax, driveMax);
 
-        rb.AddForceAtPosition(side * sideForce + forward * (rollForce + drive), _hit.point);
+        // Tire forces push from a raised point (see WheelProfile.tireForceHeight) to reduce roll.
+        Vector3 tirePoint = _hit.point + up * profile.tireForceHeight;
+        rb.AddForceAtPosition(side * sideForce + forward * (rollForce + drive), tirePoint);
 
         // Record values
         LastSideForce = sideForce;
@@ -118,13 +120,20 @@ public sealed class VehicleWheel : VehicleModule
         SlipSpeed = sideSpeed;
     }
 
-    /// <summary>Raycasts for ground and updates suspension load. False if the wheel is in the air.</summary>
+    /// <summary>
+    /// Sphere-casts for ground and updates suspension load. False if the wheel is in the air.
+    /// A sphere (not a ray) touches curbs and edges before the wheel reaches them, so it rolls over
+    /// them instead of the body snagging. The cast starts one radius above the mount so it never
+    /// begins inside the ground.
+    /// </summary>
     private bool UpdateContact(float dt)
     {
         Vector3 up = Vehicle.transform.up;
-        float maxDist = profile.suspensionTravel + profile.radius;
+        float castRadius = profile.radius * profile.castRadiusScale;
+        float headroom = profile.radius;
+        Vector3 start = transform.position + up * headroom;
 
-        IsGrounded = CastGround(transform.position, -up, maxDist, out _hit);
+        IsGrounded = CastGround(start, castRadius, -up, headroom + profile.suspensionTravel + (profile.radius - castRadius), out _hit);
         if (!IsGrounded)
         {
             Load = 0f;
@@ -134,22 +143,25 @@ public sealed class VehicleWheel : VehicleModule
             return false;
         }
 
-        // Spring-damper
-        float compression = maxDist - _hit.distance;                 // 0 .. travel(+)
+        // How far below the mount the wheel center sits (negative = pushed up past full compression).
+        float drop = _hit.distance - headroom - (profile.radius - castRadius);
+
+        // Spring-damper. Past full compression the spring keeps stiffening, acting as a bump stop.
+        float compression = profile.suspensionTravel - drop;
         float compressionSpeed = (compression - _lastCompression) / Mathf.Max(dt, 1e-4f);
         _lastCompression = compression;
-        _wheelDrop = _hit.distance - profile.radius;
+        _wheelDrop = Mathf.Clamp(drop, 0f, profile.suspensionTravel);
 
         Load = Mathf.Max(0f, compression * profile.spring + compressionSpeed * profile.damper);
         Surface = GroundSurface.For(_hit.collider);
         return true;
     }
 
-    /// <summary>Ground raycast that ignores the vehicle's own colliders (and cargo on its Rigidbody).</summary>
-    private bool CastGround(Vector3 origin, Vector3 dir, float maxDist, out RaycastHit best)
+    /// <summary>Ground sphere cast that ignores the vehicle's own colliders (and cargo on its Rigidbody).</summary>
+    private bool CastGround(Vector3 origin, float radius, Vector3 dir, float maxDist, out RaycastHit best)
     {
         best = default;
-        int count = Physics.RaycastNonAlloc(origin, dir, _hits, maxDist, profile.groundMask, QueryTriggerInteraction.Ignore);
+        int count = Physics.SphereCastNonAlloc(origin, radius, dir, _hits, maxDist, profile.groundMask, QueryTriggerInteraction.Ignore);
 
         float bestDist = float.MaxValue;
         bool found = false;
@@ -157,6 +169,7 @@ public sealed class VehicleWheel : VehicleModule
         {
             var h = _hits[i];
             if (h.rigidbody == Vehicle.Body) continue;
+            if (h.distance <= 0f) continue; // overlapping at the start: no usable contact point
             if (h.distance < bestDist)
             {
                 bestDist = h.distance;
@@ -201,7 +214,7 @@ public sealed class VehicleWheel : VehicleModule
         float travel = profile.suspensionTravel;
 
         Gizmos.color = Color.yellow;
-        Gizmos.DrawLine(transform.position, transform.position + down * (travel + profile.radius));
+        Gizmos.DrawLine(transform.position - down * profile.radius, transform.position + down * (travel + profile.radius));
         Gizmos.color = IsGrounded ? Color.green : Color.red;
         Gizmos.DrawWireSphere(transform.position + down * (Application.isPlaying ? _wheelDrop : travel), profile.radius);
     }

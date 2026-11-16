@@ -1,3 +1,4 @@
+using KinematicCharacterController;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -16,7 +17,8 @@ public sealed class PlayerSeating : NetworkBehaviour
     [SerializeField] private float inputSendRate = 20f;
 
     private PlayerState _state;
-    private CharacterController _cc;
+    private KinematicCharacterMotor _motor;
+    private Collider _capsule;
     private PlayerCameraController _camera;
 
     private VehicleSeating _vehicle;
@@ -35,7 +37,8 @@ public sealed class PlayerSeating : NetworkBehaviour
     private void Awake()
     {
         _state = GetComponent<PlayerState>();
-        _cc = GetComponent<CharacterController>();
+        _motor = GetComponent<KinematicCharacterMotor>();
+        _capsule = GetComponent<CapsuleCollider>();
         _camera = GetComponent<PlayerCameraController>();
     }
 
@@ -138,8 +141,10 @@ public sealed class PlayerSeating : NetworkBehaviour
 
     private void OnEnterSeat()
     {
-        // Disabled on every machine so the capsule doesn't collide with the vehicle it's sitting in.
-        if (_cc != null) _cc.enabled = false;
+        // Capsule off on every machine so it doesn't collide with the vehicle it's sitting in.
+        // Motor off on the owner (it only ever runs there) so it stops moving us.
+        if (_capsule != null) _capsule.enabled = false;
+        if (IsOwner && _motor != null) _motor.enabled = false;
         _throttle = _steer = 0f;
         _brake = false;
 
@@ -153,7 +158,10 @@ public sealed class PlayerSeating : NetworkBehaviour
         if (IsOwner)
         {
             if (previous != null)
-                transform.position = previous.ExitPoint.position;
+            {
+                if (_motor != null) _motor.SetPosition(previous.ExitPoint.position);
+                else transform.position = previous.ExitPoint.position;
+            }
 
             if (_camera != null)
             {
@@ -162,7 +170,8 @@ public sealed class PlayerSeating : NetworkBehaviour
             }
         }
 
-        if (_cc != null) _cc.enabled = true;
+        if (_capsule != null) _capsule.enabled = true;
+        if (IsOwner && _motor != null) _motor.enabled = true;
     }
 
     // ============================================================
