@@ -21,19 +21,19 @@ public sealed class VehicleHitch : VehicleModule, IVehicleControlSource
     [Tooltip("Attach to this hitch when the vehicle spawns (optional)")]
     [SerializeField] private HitchPoint attachOnSpawn;
     [Tooltip("If the coupling is further than this from the hitch when attaching, this vehicle is moved into place (m)")]
-    [SerializeField] private float snapTolerance = 0.5f;
+    [Unit("m")] [SerializeField] private float snapTolerance = 0.5f;
 
     [Header("Joint limits (degrees)")]
     [Tooltip("Left/right swing. Lower = can't jackknife as far.")]
-    [SerializeField] private float yawLimit = 75f;
+    [Unit("°")] [SerializeField] private float yawLimit = 75f;
     [Tooltip("Up/down, for hills and bumps")]
-    [SerializeField] private float pitchLimit = 25f;
+    [Unit("°")] [SerializeField] private float pitchLimit = 25f;
     [Tooltip("Twist between the two vehicles")]
     [SerializeField] private float rollLimit = 10f;
 
     [Header("Breaking")]
     [Tooltip("Force (N) that snaps the coupling. 0 = unbreakable.")]
-    [SerializeField] private float breakForce = 40000f;
+    [Unit("N")] [SerializeField] private float breakForce = 40000f;
 
     [Header("Brakes")]
     [Tooltip("This vehicle brakes when the towing vehicle brakes (on wheels with Has Brake)")]

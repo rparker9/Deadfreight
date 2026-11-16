@@ -43,13 +43,13 @@ public sealed class VehicleSeat : MonoBehaviour
     [SerializeField] private bool thirdPerson = true;
     [Tooltip("Point the camera orbits around. Empty = vehicle root, raised by Camera Height.")]
     [SerializeField] private Transform cameraFocus;
-    [SerializeField] private float cameraHeight = 2f;
-    [SerializeField] private float cameraDistance = 6f;
+    [Unit("m")] [SerializeField] private float cameraHeight = 2f;
+    [Unit("m")] [SerializeField] private float cameraDistance = 6f;
 
     [Header("Driving")]
     [SerializeField] private SteerMode steerMode = SteerMode.Camera;
     [Tooltip("Camera mode: how far (degrees) the camera must be off the vehicle's heading for full lock")]
-    [SerializeField] private float cameraSteerFullAngle = 30f;
+    [Unit("°")] [SerializeField] private float cameraSteerFullAngle = 30f;
 
     // Public Accessors
     public SeatRole Role => role;

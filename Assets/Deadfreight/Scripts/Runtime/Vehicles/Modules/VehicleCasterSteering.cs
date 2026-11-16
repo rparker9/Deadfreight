@@ -10,11 +10,13 @@ public sealed class VehicleCasterSteering : VehicleModule
 {
     [Tooltip("The axle that turns (front wheel mounts must be its children)")]
     [SerializeField] private Transform axle;
-    [SerializeField] private float maxSteerAngle = 45f;
+    [Unit("°")] [SerializeField] private float maxSteerAngle = 45f;
+    
     [Tooltip("Degrees per second the axle can turn")]
-    [SerializeField] private float steerSpeed = 180f;
+    [Unit("°/s")] [SerializeField] private float steerSpeed = 180f;
+    
     [Tooltip("Below this speed (m/s) the axle holds its angle")]
-    [SerializeField] private float minSpeed = 0.3f;
+    [Unit("m/s")] [SerializeField] private float minSpeed = 0.3f;
 
     public override int Order => VehicleModuleOrder.Steering;
 

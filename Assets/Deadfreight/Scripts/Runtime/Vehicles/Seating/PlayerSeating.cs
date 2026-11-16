@@ -14,7 +14,7 @@ using UnityEngine;
 public sealed class PlayerSeating : NetworkBehaviour
 {
     [Tooltip("Driver input sends per second")]
-    [SerializeField] private float inputSendRate = 20f;
+    [Unit("Hz")] [SerializeField] private float inputSendRate = 20f;
 
     private PlayerState _state;
     private KinematicCharacterMotor _motor;

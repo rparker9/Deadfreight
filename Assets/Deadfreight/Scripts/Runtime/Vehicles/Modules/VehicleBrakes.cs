@@ -7,7 +7,7 @@ using UnityEngine;
 public sealed class VehicleBrakes : VehicleModule
 {
     [Tooltip("How fast the brake engages and releases (per second). 0 = instant.")]
-    [SerializeField] private float response = 0f;
+    [Unit("x/s")] [SerializeField] private float response = 0f;
 
     public override int Order => VehicleModuleOrder.Brakes;
 

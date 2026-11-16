@@ -21,17 +21,19 @@ using UnityEngine;
 public sealed partial class Vehicle : NetworkBehaviour
 {
     [Header("Body")]
-    [Tooltip("Center of mass relative to the vehicle root. Lower = harder to tip.")]
+    [Tooltip("Center of mass relative to the vehicle root in meters. Lower = harder to tip.")]
     [SerializeField] private Vector3 centerOfMass = new Vector3(0f, 0.55f, 0f);
-    [SerializeField] private float maxAngularVelocity = 7f;
+    [Unit("Rad/s")] [SerializeField] private float maxAngularVelocity = 7f;
 
     [Header("Events")]
     [Tooltip("Collisions at least this fast (m/s) raise Impacted")]
-    [SerializeField] private float impactSpeedThreshold = 3f;
+    [Unit("m/s")] [SerializeField] private float impactSpeedThreshold = 3f;
+    
     [Tooltip("Tilt (degrees) that counts as tipped over")]
-    [SerializeField] private float tipAngle = 60f;
+    [Unit("°")] [SerializeField] private float tipAngle = 60f;
+    
     [Tooltip("Below this speed (m/s) with throttle applied, the vehicle counts as stuck")]
-    [SerializeField] private float stuckSpeed = 0.05f;
+    [Unit("m/s")] [SerializeField] private float stuckSpeed = 0.05f;
 
     // ---- Events (SERVER only) ----
     /// <summary>

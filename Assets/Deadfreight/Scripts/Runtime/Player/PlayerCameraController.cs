@@ -1,4 +1,3 @@
-using System.Collections;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -47,9 +46,21 @@ public sealed class PlayerCameraController : NetworkBehaviour
     [SerializeField] private float thirdPersonCollisionRadius = 0.25f;
     [SerializeField] private LayerMask thirdPersonCollisionMask = ~0;
 
+    [Tooltip("Seconds to blend between first and third person when getting in or out of a seat")]
+    [SerializeField] private float viewBlendTime = 0.35f;
+
     private bool _thirdPerson;
     private Vector3 _firstPersonLocalPos;
     private Quaternion _firstPersonLocalRot;
+
+    // Third-person pose for this frame (set by SetThirdPerson every LateUpdate)
+    private Vector3 _thirdPersonPos;
+    private Quaternion _thirdPersonRot;
+
+    // View blend: from the camera pose at the moment of switching, toward the live target pose
+    private float _blendProgress = 1f;   // 0 = just switched, 1 = done
+    private Vector3 _blendFromPos;
+    private Quaternion _blendFromRot;
     private readonly RaycastHit[] _hits = new RaycastHit[16];
 
     // Public API for other systems (input, motor)
@@ -249,7 +260,12 @@ public sealed class PlayerCameraController : NetworkBehaviour
     public void SetThirdPerson(Vector3 focus, float distance, Rigidbody ignore = null)
     {
         if (!IsOwner || playerCamera == null) return;
-        _thirdPerson = true;
+
+        if (!_thirdPerson)
+        {
+            BeginViewBlend();
+            _thirdPerson = true;
+        }
 
         Vector3 dir = GetLookDirection();
         float dist = distance;
@@ -266,45 +282,79 @@ public sealed class PlayerCameraController : NetworkBehaviour
         }
 
         dist = Mathf.Max(0.5f, dist - 0.1f);
-        StartCoroutine(LerpCameraPosition(focus - dir * dist, Quaternion.LookRotation(dir, Vector3.up), 0.5f));
+
+        // Just store it: LateUpdate places the camera (and blends into it after a switch).
+        _thirdPersonPos = focus - dir * dist;
+        _thirdPersonRot = Quaternion.LookRotation(dir, Vector3.up);
     }
 
-    private IEnumerator LerpCameraPosition(Vector3 targetPos, Quaternion targetRot, float duration, bool useLocalPosition = false)
-    {
-        if (playerCamera == null) 
-            yield break;
-        
-        Vector3 startPos = useLocalPosition ? playerCamera.transform.localPosition : playerCamera.transform.position;
-        Quaternion startRot = playerCamera.transform.rotation;
-        
-        float elapsed = 0f;
-        while (elapsed < duration)
-        {
-            elapsed += Time.deltaTime;
-            float t = Mathf.Clamp01(elapsed / duration);
-            if (useLocalPosition)
-                playerCamera.transform.localPosition = Vector3.Lerp(startPos, targetPos, t);
-            else
-                playerCamera.transform.position = Vector3.Lerp(startPos, targetPos, t);
-            playerCamera.transform.rotation = Quaternion.Slerp(startRot, targetRot, t);
-            yield return null;
-        }
-        if (useLocalPosition)
-            playerCamera.transform.localPosition = targetPos;
-        else
-            playerCamera.transform.position = targetPos;
-        playerCamera.transform.rotation = targetRot;
-    }
-    
     /// <summary>Back to the normal first-person camera position.</summary>
     public void ClearThirdPerson()
     {
         if (!_thirdPerson || playerCamera == null) return;
+        BeginViewBlend();
         _thirdPerson = false;
-        StartCoroutine(LerpCameraPosition(_firstPersonLocalPos, _firstPersonLocalRot, 0.5f, true));
     }
 
     public bool IsThirdPerson => _thirdPerson;
+
+    // ============================================================
+    // CAMERA PLACEMENT (owner, every frame)
+    // ============================================================
+
+    /// <summary>
+    /// Places the camera once per frame, after the seat and the character have moved
+    /// (PlayerSeating runs earlier in LateUpdate). Both target poses are recomputed live
+    /// every frame, so a blend keeps tracking a moving vehicle and your mouse.
+    /// </summary>
+    private void LateUpdate()
+    {
+        if (!IsOwner || playerCamera == null) return;
+
+        Transform cam = playerCamera.transform;
+        bool blending = _blendProgress < 1f;
+
+        // First person, settled: just sit at the normal local pose under the pitch pivot.
+        if (!_thirdPerson && !blending)
+        {
+            cam.localPosition = _firstPersonLocalPos;
+            cam.localRotation = _firstPersonLocalRot;
+            return;
+        }
+
+        // Where the camera should be this frame.
+        Vector3 targetPos;
+        Quaternion targetRot;
+        if (_thirdPerson)
+        {
+            targetPos = _thirdPersonPos;
+            targetRot = _thirdPersonRot;
+        }
+        else
+        {
+            Transform parent = cam.parent;
+            targetPos = parent.TransformPoint(_firstPersonLocalPos);
+            targetRot = parent.rotation * _firstPersonLocalRot;
+        }
+
+        if (blending)
+        {
+            _blendProgress = viewBlendTime > 0f ? Mathf.Min(1f, _blendProgress + Time.deltaTime / viewBlendTime) : 1f;
+            float t = Mathf.SmoothStep(0f, 1f, _blendProgress); // ease in and out
+            targetPos = Vector3.Lerp(_blendFromPos, targetPos, t);
+            targetRot = Quaternion.Slerp(_blendFromRot, targetRot, t);
+        }
+
+        cam.SetPositionAndRotation(targetPos, targetRot);
+    }
+
+    /// <summary>Start blending from wherever the camera is right now.</summary>
+    private void BeginViewBlend()
+    {
+        _blendFromPos = playerCamera.transform.position;
+        _blendFromRot = playerCamera.transform.rotation;
+        _blendProgress = 0f;
+    }
 
     /// <summary>
     /// Add recoil/camera shake (useful for weapon feedback)

@@ -289,6 +289,7 @@ MonoBehaviour:
   thirdPersonCollisionMask:
     serializedVersion: 2
     m_Bits: 4294967295
+  viewBlendTime: 0.35
 --- !u!114 &1225531027342097268
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -340,8 +341,8 @@ MonoBehaviour:
   holdPoseParam: HoldPose
   isSeatedParam: IsSeated
   walkSpeedReference: 4.5
-  speedSmoothTime: 0.1
-  inputDampTime: 0.1
+  speedSmoothTime: 0.05
+  inputDampTime: 0.05
   bodyRotationSpeed: 720
 --- !u!114 &1744349384822415783
 MonoBehaviour:

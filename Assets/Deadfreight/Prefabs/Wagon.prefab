@@ -342,7 +342,7 @@ MonoBehaviour:
   Ownership: 1
   AlwaysReplicateAsRoot: 0
   SynchronizeTransform: 1
-  m_InScenePlaced: 1
+  m_InScenePlaced: 0
   ActiveSceneSynchronization: 0
   SceneMigrationSynchronization: 0
   SpawnWithObservers: 1
@@ -481,8 +481,8 @@ MonoBehaviour:
   maxForce: 3200
   power: 8000
   reverseForce: 1500
-  maxForwardSpeed: 7
-  maxReverseSpeed: 2.5
+  maxForwardSpeed: 60
+  maxReverseSpeed: 5
 --- !u!114 &4534104129618912850
 MonoBehaviour:
   m_ObjectHideFlags: 0
