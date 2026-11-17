@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: MovementSettings
   m_EditorClassIdentifier: Assembly-CSharp::MovementSettings
   walkSpeed: 3
-  sprintSpeed: 6
+  sprintSpeed: 50
   crouchSpeed: 2.5
   groundAccel: 55
   groundDecel: 75

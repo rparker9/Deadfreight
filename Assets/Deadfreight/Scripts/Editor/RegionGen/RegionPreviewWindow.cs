@@ -106,6 +106,7 @@ public sealed class RegionPreviewWindow : EditorWindow
         if (map.Marsh[i]) c = new Color(0.35f, 0.42f, 0.33f);
         if (map.Hollow[i]) c = Color.Lerp(c, new Color(0.75f, 0.8f, 0.8f), 0.25f);
         if (map.Water[i] || map.River[i]) c = new Color(0.25f, 0.4f, 0.55f);
+        if (map.Cliff[i]) c = new Color(0.45f, 0.15f, 0.12f);
         if (map.Road[i] && (showLanes || map.MainRoad[i] || OnAnyRoute(i))) c = new Color(0.82f, 0.78f, 0.68f);
         c.a = 1f;
         return c;
@@ -192,7 +193,8 @@ public sealed class RegionPreviewWindow : EditorWindow
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Routes, entry → site (trunk included)", EditorStyles.boldLabel);
         EditorGUILayout.LabelField(
-            $"{map.Routes.Count - 1} alternates · {map.RejectedAlternates} tries rejected for time",
+            $"{map.Routes.Count - 1} alternates · {map.RejectedAlternates} tries rejected for time" +
+            (map.HasEscarpment ? $" · escarpment {map.ScarpRise:0} m, {map.Cuttings} cut cells" : ""),
             EditorStyles.miniLabel);
 
         float mainMinutes = map.Routes[0].OneWayMinutes;
@@ -278,7 +280,7 @@ public sealed class RegionPreviewWindow : EditorWindow
         legend.normal.textColor = new Color(0.75f, 0.75f, 0.75f);
         GUI.Label(new Rect(canvas.x + 8f, canvas.yMax - 18f, canvas.width - 16f, 16f),
             "Blue = water · dark green = forest · grey-green = marsh · pale = fog hollows · tan = road · " +
-            "green arrow = entry · white = trunk · square = fork · red dot = site", legend);
+            "green arrow = entry · white = trunk · square = fork · red dot = site · dark red = cliff", legend);
     }
 
     /// <summary>The trunk as a white line, an arrow coming in from off the map, and a square at the fork.</summary>

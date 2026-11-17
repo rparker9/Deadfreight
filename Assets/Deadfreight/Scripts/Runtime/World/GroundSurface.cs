@@ -22,6 +22,13 @@ public sealed class GroundSurface : MonoBehaviour
     public float RollingResistance => rollingResistance;
     public float Grip => grip;
 
+    /// <summary>Sets the feel from code, for ground that is generated rather than placed by hand.</summary>
+    public void Configure(float rollingResistance, float grip)
+    {
+        this.rollingResistance = rollingResistance;
+        this.grip = grip;
+    }
+
     // Collider -> surface lookup, cached so wheels don't call GetComponent every physics step.
     private static readonly Dictionary<Collider, GroundSurface> Cache = new();
 

@@ -81,7 +81,16 @@ public sealed class RegionMap
 
     public readonly float[] Elevation;   // 0-1
     public readonly float[] Slope;       // rise over run
+    public readonly float[] Drainage;    // cells draining through each cell; rivers are where it's large
     public readonly bool[] Water, River, Marsh, Forest, Hollow, Road, MainRoad;
+
+    // The escarpment, if this region has one: a raised upland with a steep face along a line.
+    public bool HasEscarpment;
+    public readonly float[] Scarp;       // signed cells from the face: positive on the upland side
+    public readonly float[] ScarpPass;   // 0 = sheer face, 1 = the middle of a pass (a long ramp)
+    public readonly bool[] Cliff;        // face cells roads can't climb: everything but the passes
+    public float ScarpRise;              // metres the upland stands above the lowland
+    public int Cuttings;                 // road cells cut through the face because no pass could be reached
 
     public RegionEntry Entry;
     public Place Site;
@@ -89,6 +98,7 @@ public sealed class RegionMap
     public Route Trunk;                  // entry to fork, shared by every route
     public readonly List<Place> Places = new();   // the site, stops and vias
     public readonly List<Route> Routes = new();   // Routes[0] is the main road
+    public readonly List<List<Vector2Int>> Lanes = new();   // each runs from a stop to the road
 
     /// <summary>Why generation stopped early, or null if it finished. Without it there are no routes.</summary>
     public string Failure;
@@ -104,6 +114,7 @@ public sealed class RegionMap
         int n = width * height;
         Elevation = new float[n];
         Slope = new float[n];
+        Drainage = new float[n];
         Water = new bool[n];
         River = new bool[n];
         Marsh = new bool[n];
@@ -111,6 +122,9 @@ public sealed class RegionMap
         Hollow = new bool[n];
         Road = new bool[n];
         MainRoad = new bool[n];
+        Scarp = new float[n];
+        ScarpPass = new float[n];
+        Cliff = new bool[n];
     }
 
     public int Index(Vector2Int c) => c.y * Width + c.x;

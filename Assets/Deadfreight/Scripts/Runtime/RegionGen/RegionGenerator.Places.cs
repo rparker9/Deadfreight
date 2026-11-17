@@ -32,6 +32,12 @@ public sealed partial class RegionGenerator
         var edges = new List<MapEdge> { MapEdge.West, MapEdge.East, MapEdge.North, MapEdge.South };
         Shuffle(edges);
 
+        // With an escarpment, try edges the face doesn't reach first, so the entry starts on one side of it.
+        var clear = edges.FindAll(e => !EdgeTouchesFace(e));
+        var touched = edges.FindAll(e => EdgeTouchesFace(e));
+        edges = clear;
+        edges.AddRange(touched);
+
         foreach (var edge in edges)
         {
             var entry = BestEntryOn(edge);
@@ -97,8 +103,9 @@ public sealed partial class RegionGenerator
     // ---------------- site ----------------
 
     /// <summary>
-    /// The heist site: buildable ground inland, at a set straight-line distance from the entry.
-    /// That distance is what sets the main road's length, whichever edge the entry is on.
+    /// The heist site: buildable ground inland, at a set straight-line distance from the entry,
+    /// and beyond the escarpment if there is one. The distance is what sets the main road's
+    /// length, whichever edge the entry is on.
     /// </summary>
     bool PlaceSite()
     {
@@ -107,13 +114,14 @@ public sealed partial class RegionGenerator
             var c = new Vector2Int(rng.Next(SiteMargin, width - SiteMargin), rng.Next(SiteMargin, height - SiteMargin));
             float d = Distance(map.Entry.Cell, c);
             if (!Buildable(c) || d < settings.siteMinDistance || d > settings.siteMaxDistance) continue;
+            if (!AcrossEscarpment(c)) continue;     // every trip should cross the escarpment
 
             map.Site = new Place { Kind = PlaceKind.Site, Cell = c };
             map.Places.Add(map.Site);
             return true;
         }
 
-        map.Failure = "No buildable ground for the site at the set distance from the entry.";
+        map.Failure = "No buildable ground for the site at the set distance from the entry (and beyond the escarpment, if any).";
         return false;
     }
 

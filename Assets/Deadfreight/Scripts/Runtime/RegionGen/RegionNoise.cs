@@ -24,6 +24,31 @@ public static class RegionNoise
         return total;
     }
 
+    /// <summary>
+    /// Layered ridged noise, 0..1: sharp crests where the noise crosses zero, soft hollows between.
+    /// Gives hills creases and spines instead of the round domes plain noise makes.
+    /// </summary>
+    public static float[] RidgedFbm(int w, int h, float scale, int octaves, System.Random rng)
+    {
+        const float CreaseWidth = 0.6f;     // noise within this of zero rises toward a crest
+        var total = new float[w * h];
+        float amp = 1f, norm = 0f;
+        for (int o = 0; o < octaves; o++)
+        {
+            var layer = Perlin(w, h, scale, rng);
+            for (int i = 0; i < total.Length; i++)
+            {
+                float ridge = Mathf.Clamp01(1f - Mathf.Abs(layer[i]) / CreaseWidth);
+                total[i] += ridge * ridge * amp;
+            }
+            norm += amp;
+            amp *= 0.5f;
+            scale *= 0.5f;
+        }
+        for (int i = 0; i < total.Length; i++) total[i] /= norm;
+        return total;
+    }
+
     /// <summary>One layer of gradient noise; `scale` is cells per noise period.</summary>
     public static float[] Perlin(int w, int h, float scale, System.Random rng)
     {

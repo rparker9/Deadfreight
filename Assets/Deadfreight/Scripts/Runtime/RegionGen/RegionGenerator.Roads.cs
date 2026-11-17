@@ -66,6 +66,7 @@ public sealed partial class RegionGenerator
             if (map.Marsh[i]) c += settings.marshCost;
             if (map.River[i]) c += settings.fordCost;
             if (map.Water[i]) c += Impassable;
+            if (map.Cliff[i]) c += settings.cliffCost;
 
             // Keep roads off the map edge, except where the road comes in.
             bool atEntry = Distance(new Vector2Int(x, y), map.Entry.Cell) < settings.entryClear;
@@ -276,6 +277,7 @@ public sealed partial class RegionGenerator
             if (lane == null) continue;
 
             MarkRoad(lane, isMain: false);
+            map.Lanes.Add(lane);
             foreach (var c in lane) cost[map.Index(c)] = LaneOnRoadCost;
         }
     }

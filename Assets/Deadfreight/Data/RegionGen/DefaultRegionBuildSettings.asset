@@ -1,0 +1,69 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 85bf6e1a4ae945145b4fc30db63ec80f, type: 3}
+  m_Name: DefaultRegionBuildSettings
+  m_EditorClassIdentifier: Assembly-CSharp::RegionBuildSettings
+  heightmapResolution: 2049
+  alphamapResolution: 1024
+  bumpScale: 120
+  bumpHeight: 2.5
+  roughScale: 25
+  roughHeight: 0.4
+  riverDepth: 3
+  cliffWidth: 8
+  terraces: 1
+  terraceZoneScale: 4000
+  terraceZoneStart: 0.55
+  terraceZoneFull: 0.7
+  terraceStep: 8
+  terraceRiser: 0.35
+  terraceTilt: 0.2
+  terraceWobble: 1.5
+  terraceWobbleScale: 120
+  terraceSlopeMin: 0.05
+  terraceSlopeMax: 0.35
+  mainRoadWidth: 6.5
+  backRoadWidth: 4.5
+  laneWidth: 3.2
+  shoulder: 10
+  sampleSpacing: 1.5
+  simplifyCells: 0.75
+  profileSmoothing: 60
+  maxGrade: 0.09
+  surfaceLift: 0.05
+  padRadius: 14
+  padBlend: 10
+  buildingSize: {x: 8, y: 5, z: 10}
+  siteSize: {x: 20, y: 8, z: 20}
+  rockSlopeStart: 0.45
+  rockSlopeFull: 0.8
+  paintWarp: 0.35
+  offRoad:
+    rollingResistance: 2.5
+    grip: 0.9
+  mainRoad:
+    rollingResistance: 1
+    grip: 1
+  backRoad:
+    rollingResistance: 1.5
+    grip: 0.95
+  lane:
+    rollingResistance: 2
+    grip: 0.9
+  mainRoadMaterial: {fileID: 2100000, guid: cbb9c452575e03a4b84ed22420e8bdd8, type: 2}
+  backRoadMaterial: {fileID: 0}
+  laneMaterial: {fileID: 0}
+  waterMaterial: {fileID: 2100000, guid: ff70f747c02c6bd459e26da4a58059a1, type: 2}
+  buildingMaterial: {fileID: 0}
+  siteMaterial: {fileID: 0}
+  terrainLayers:
+  - {fileID: 0}

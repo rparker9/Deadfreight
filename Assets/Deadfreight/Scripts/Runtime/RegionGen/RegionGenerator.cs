@@ -6,7 +6,10 @@ using UnityEngine;
 /// Builds a region the crew drives into from one edge and leaves the same way.
 /// The work is split by stage across partial files:
 ///
-///   1. Land    (RegionGenerator.Land.cs)    heightmap, water, rivers, marsh, forest, fog hollows.
+///   1. Land    (RegionGenerator.Land.cs)    rolling farmland and ridged hill country, lakes, rivers
+///                                           draining into river valleys, flood plains, marsh, forest,
+///                                           fog hollows; an escarpment with passes
+///                                           (RegionGenerator.Escarpment.cs).
 ///   2. Places  (RegionGenerator.Places.cs)  the entry on a random edge, the heist site across
 ///                                           the map, stops scattered between.
 ///   3. Roads   (RegionGenerator.Roads.cs)   the main road from entry to site, whose first stretch
@@ -24,6 +27,7 @@ public sealed partial class RegionGenerator
     readonly RegionMap map;
     readonly RegionSettings settings;
     readonly System.Random rng;
+    readonly int seed;      // for noise layers that draw from their own random stream
     readonly int width, height, cellCount;
 
     // Set up by the roads stage.
@@ -41,6 +45,7 @@ public sealed partial class RegionGenerator
     RegionGenerator(int seed, RegionSettings settings)
     {
         this.settings = settings;
+        this.seed = seed;
         rng = new System.Random(seed);
         map = new RegionMap(settings.width, settings.height, settings.cellSize);
         width = map.Width;
@@ -59,18 +64,19 @@ public sealed partial class RegionGenerator
         if (!BuildMainRoad()) return;
         BuildAlternates();
         BuildLanes();
+        CutThroughCliffs();
 
         MeasureRoutes();
     }
 
     // ---------------- helpers used by several stages ----------------
 
-    /// <summary>Dry, not too steep, inside the map: fine for a place or the entry road.</summary>
+    /// <summary>Dry, not too steep, not cliff, inside the map: fine for a place or the entry road.</summary>
     bool Buildable(Vector2Int c)
     {
         if (!map.InBounds(c)) return false;
         int i = map.Index(c);
-        return !map.Water[i] && !map.River[i] && map.Slope[i] < settings.maxPlaceSlope;
+        return !map.Water[i] && !map.River[i] && !map.Cliff[i] && map.Slope[i] < settings.maxPlaceSlope;
     }
 
     static float Distance(Vector2Int a, Vector2Int b) => Vector2Int.Distance(a, b);

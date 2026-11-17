@@ -29,8 +29,8 @@ MonoBehaviour:
   entrySpan: 0.6
   entryStub: 4
   entryClear: 8
-  siteMinDistance: 115
-  siteMaxDistance: 140
+  siteMinDistance: 105
+  siteMaxDistance: 128
   stops: 16
   placeSpacing: 17
   maxPlaceSlope: 0.12
