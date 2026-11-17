@@ -97,8 +97,22 @@ public sealed class RegionBuildSettings : ScriptableObject
     public Material waterMaterial;
     public Material buildingMaterial;
     public Material siteMaterial;
-    [Tooltip("Four layers in this order: grass, forest floor, mud, rock. Leave empty for plain colours.")]
+
+    [Header("Terrain look")]
+    [Tooltip("Terrain material, e.g. the Shader Graph samples' TerrainLit (height-blended layers). Empty = URP's default.")]
+    public Material terrainMaterial;
+    [Tooltip("Four layers in this order: grass, forest floor, mud, rock. Anything else = plain colours.")]
     public TerrainLayer[] terrainLayers = new TerrainLayer[0];
+
+    [Header("Ground cover (terrain details)")]
+    [Tooltip("Detail cells per side (power of two). 2048 is about 4 m per cell on an 8 km region.")]
+    public int detailResolution = 2048;
+    [Unit("m"), Tooltip("Ground cover is drawn out to this distance from the camera (Unity caps it at 250).")]
+    public float detailDistance = 80f;
+    [Unit("m"), Tooltip("Size of the patches ground cover grows in.")] public float coverPatchScale = 40f;
+    [Range(0f, 1f), Tooltip("0 = cover is even wherever its ground is; 1 = it only grows in patches.")]
+    public float coverPatchiness = 0.6f;
+    public GroundCover[] groundCover = new GroundCover[0];
 
     public float RoadWidth(RoadClass roadClass) => roadClass switch
     {
@@ -118,6 +132,8 @@ public sealed class RegionBuildSettings : ScriptableObject
     {
         heightmapResolution = Closest(HeightmapResolutions, heightmapResolution);
         alphamapResolution = Mathf.ClosestPowerOfTwo(Mathf.Clamp(alphamapResolution, 64, 4096));
+        detailResolution = Mathf.ClosestPowerOfTwo(Mathf.Clamp(detailResolution, 64, 4096));
+        detailDistance = Mathf.Clamp(detailDistance, 0f, 250f);
         sampleSpacing = Mathf.Max(0.25f, sampleSpacing);
         profileSmoothing = Mathf.Max(0f, profileSmoothing);
         shoulder = Mathf.Max(0.1f, shoulder);

@@ -14,7 +14,8 @@ using Debug = UnityEngine.Debug;
 ///   2. Roads split so none overlap (RoadNetwork), then one at a time smoothed, given a
 ///      grade-limited height, and pressed into the ground (RoadShaper).
 ///   3. Pads levelled under places.
-///   4. Scene objects: terrain (painted by TerrainPaint), lake water, a mesh per road, boxes for places.
+///   4. Scene objects: terrain (painted by TerrainPaint, ground cover by GroundCoverPaint), lake water,
+///      a mesh per road, boxes for places.
 ///
 /// Build from the inspector buttons, or on Start. Keep this object at the world origin.
 /// Edit-mode builds aren't saved with the scene; they're rebuilt from the seed.
@@ -131,19 +132,29 @@ public sealed class RegionBuilder : MonoBehaviour
 
         data.terrainLayers = TerrainLayers();
         data.alphamapResolution = buildSettings.alphamapResolution;
-        data.SetAlphamaps(0, 0, TerrainPaint.Weights(Map, frame, field, buildSettings, seed));
+        var paint = TerrainPaint.Weights(Map, frame, field, buildSettings, seed);
+        data.SetAlphamaps(0, 0, paint);
 
-        var terrain = Terrain.CreateTerrainGameObject(data);
-        terrain.name = "Terrain";
-        terrain.transform.SetParent(root.transform, false);
-        terrain.transform.localPosition = new Vector3(0f, bottom, 0f);
-        AddSurface(terrain, buildSettings.offRoad);
+        // Ground cover grows where the paint says its ground is.
+        float waterHeight = regionSettings.seaLevel * regionSettings.relief;
+        GroundCoverPaint.Apply(data, paint, field, waterHeight, buildSettings, seed);
+
+        var go = Terrain.CreateTerrainGameObject(data);
+        go.name = "Terrain";
+        go.transform.SetParent(root.transform, false);
+        go.transform.localPosition = new Vector3(0f, bottom, 0f);
+        AddSurface(go, buildSettings.offRoad);
+
+        var terrain = go.GetComponent<Terrain>();
+        if (buildSettings.terrainMaterial != null) terrain.materialTemplate = buildSettings.terrainMaterial;
+        terrain.detailObjectDistance = buildSettings.detailDistance;
     }
 
     TerrainLayer[] TerrainLayers()
     {
-        if (buildSettings.terrainLayers != null && buildSettings.terrainLayers.Length == TerrainPaint.LayerCount)
-            return buildSettings.terrainLayers;
+        var assigned = buildSettings.terrainLayers;
+        if (assigned != null && assigned.Length == TerrainPaint.LayerCount && System.Array.TrueForAll(assigned, l => l != null))
+            return assigned;
 
         var layers = new TerrainLayer[TerrainPaint.LayerCount];
         layers[TerrainPaint.Grass] = PlainLayer(new Color(0.42f, 0.50f, 0.30f));

@@ -2601,6 +2601,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Wagon
       objectReference: {fileID: 0}
+    - target: {fileID: 4534104129618912850, guid: e3a48da029dfedd4cae6f9142505cee4, type: 3}
+      propertyPath: response
+      value: 0.02
+      objectReference: {fileID: 0}
     - target: {fileID: 4843782345793961611, guid: e3a48da029dfedd4cae6f9142505cee4, type: 3}
       propertyPath: m_InScenePlaced
       value: 1
@@ -2608,6 +2612,10 @@ PrefabInstance:
     - target: {fileID: 4843782345793961611, guid: e3a48da029dfedd4cae6f9142505cee4, type: 3}
       propertyPath: GlobalObjectIdHash
       value: 657761356
+      objectReference: {fileID: 0}
+    - target: {fileID: 7768220147044556662, guid: e3a48da029dfedd4cae6f9142505cee4, type: 3}
+      propertyPath: maxForwardSpeed
+      value: 20
       objectReference: {fileID: 0}
     - target: {fileID: 8621051122680501763, guid: e3a48da029dfedd4cae6f9142505cee4, type: 3}
       propertyPath: m_LocalPosition.x
@@ -2824,7 +2832,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RegionBuilder
   regionSettings: {fileID: 11400000, guid: 007eaf37b5c80414d8f6f9d6d5ddb67d, type: 2}
   buildSettings: {fileID: 11400000, guid: 4a7128911a93d064ab284b14d9c6b0d8, type: 2}
-  seed: 214038512
+  seed: 1908924171
   buildOnStart: 1
   placeAtEntry: {fileID: 1637565307}
 --- !u!4 &1431377713
@@ -3423,8 +3431,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1637565306}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0.6770037, z: 0, w: 0.7359796}
-  m_LocalPosition: {x: 14.968522, y: 22.137016, z: 4500.9204}
+  m_LocalRotation: {x: 0, y: -0.7274983, z: 0, w: 0.68610954}
+  m_LocalPosition: {x: 7935.0127, y: 23.398634, z: 1399.4261}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
