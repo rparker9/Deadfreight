@@ -60,6 +60,14 @@ MonoBehaviour:
   rockSlopeStart: 0.45
   rockSlopeFull: 0.8
   paintWarp: 0.35
+  vergeWidth: 3
+  riverGravel: 2
+  riverDamp: 10
+  screeReach: 40
+  ridgeDepth: 0.02
+  ridgeStony: 0.6
+  edgeNoise: 0.25
+  edgeNoiseScale: 25
   offRoad:
     rollingResistance: 2.5
     grip: 0.9
@@ -79,20 +87,13 @@ MonoBehaviour:
   riverMaterial: {fileID: 0}
   buildingMaterial: {fileID: 0}
   siteMaterial: {fileID: 0}
-  terrainMaterial: {fileID: 2100000, guid: 6aa744a8b65ac5f4ea3a642a565fa79e, type: 2}
-  terrainLayers:
-  - {fileID: 8574412962073106934, guid: d50cafa0d386c174c83eae635927137e, type: 2}
-  - {fileID: 8574412962073106934, guid: 7c07cded8a8876b4690c7cbfc1b0a8fe, type: 2}
-  - {fileID: 8574412962073106934, guid: eca23fd431b7ab6419ab7385db92ed7a, type: 2}
-  - {fileID: 8574412962073106934, guid: 4a85cfd91a5d12e4daf8be3a06d001a8, type: 2}
+  terrainMaterial: {fileID: 0}
+  grassLayer: {fileID: 8574412962073106934, guid: 9cfbfd434aaa5394b9eb54228e903de9, type: 2}
+  dirtLayer: {fileID: 8574412962073106934, guid: d1cb3b9c34b038f4b9c397829fce2a12, type: 2}
+  stonyLayer: {fileID: 8574412962073106934, guid: 6cd76f06e7472e9429be263b17207733, type: 2}
+  rockLayer: {fileID: 8574412962073106934, guid: 7020c3ecf65a8dd409caa90bcf41fde4, type: 2}
   detailResolution: 2048
   detailDistance: 80
   coverPatchScale: 40
   coverPatchiness: 0.6
-  groundCover:
-  - prototype: {fileID: 0}
-    grows: 0
-    amount: 0
-    density: 0
-    scale: {x: 0, y: 0}
-    alignToGround: 0
+  groundCover: []

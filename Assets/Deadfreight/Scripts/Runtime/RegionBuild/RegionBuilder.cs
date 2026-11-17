@@ -168,21 +168,20 @@ public sealed class RegionBuilder : MonoBehaviour
         terrain.detailObjectDistance = buildSettings.detailDistance;
     }
 
+    /// <summary>
+    /// The four layers in TerrainPaint's order. Any role without a layer assigned gets a plain
+    /// colour, so a missing slot is easy to spot.
+    /// </summary>
     TerrainLayer[] TerrainLayers()
     {
-        var assigned = buildSettings.terrainLayers;
-        if (assigned != null && assigned.Length == TerrainPaint.LayerCount && System.Array.TrueForAll(assigned, l => l != null))
-            return assigned;
-
         var layers = new TerrainLayer[TerrainPaint.LayerCount];
-        layers[TerrainPaint.Grass] = PlainLayer(new Color(0.42f, 0.50f, 0.30f));
-        layers[TerrainPaint.ForestFloor] = PlainLayer(new Color(0.25f, 0.27f, 0.18f));
-        layers[TerrainPaint.Mud] = PlainLayer(new Color(0.30f, 0.24f, 0.17f));
-        layers[TerrainPaint.Rock] = PlainLayer(new Color(0.48f, 0.47f, 0.44f));
+        layers[TerrainPaint.Grass] = buildSettings.grassLayer != null ? buildSettings.grassLayer : PlainLayer(new Color(0.42f, 0.50f, 0.30f));
+        layers[TerrainPaint.Dirt] = buildSettings.dirtLayer != null ? buildSettings.dirtLayer : PlainLayer(new Color(0.30f, 0.25f, 0.18f));
+        layers[TerrainPaint.Stony] = buildSettings.stonyLayer != null ? buildSettings.stonyLayer : PlainLayer(new Color(0.52f, 0.49f, 0.44f));
+        layers[TerrainPaint.Rock] = buildSettings.rockLayer != null ? buildSettings.rockLayer : PlainLayer(new Color(0.40f, 0.39f, 0.37f));
         return layers;
     }
 
-    /// <summary>Lakes: one flat plane at sea level; the terrain hides it everywhere above water.</summary>
     /// <summary>
     /// Lakes: one flat plane at lake level. The terrain hides it everywhere the map says land
     /// (KeepShoreline holds land above it); rivers have their own water (CreateRiver).

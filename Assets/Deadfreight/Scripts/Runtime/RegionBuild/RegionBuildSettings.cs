@@ -104,6 +104,15 @@ public sealed class RegionBuildSettings : ScriptableObject
     [Tooltip("Slope (rise over run) where rock starts showing...")] public float rockSlopeStart = 0.45f;
     [Tooltip("...and where it covers the ground.")] public float rockSlopeFull = 0.8f;
     [Tooltip("Wobbles texture borders by up to this many cells, so the 50 m grid doesn't show.")] public float paintWarp = 0.35f;
+    [Unit("m"), Tooltip("Stony verge beside every road, measured from the road's edge.")] public float vergeWidth = 3f;
+    [Unit("m"), Tooltip("Stony gravel bar at the water's edge along rivers...")] public float riverGravel = 2f;
+    [Unit("m"), Tooltip("...then damp dirt out to this far from the water.")] public float riverDamp = 10f;
+    [Unit("m"), Tooltip("Scree: stony ground spilling this far out from the foot of a cliff.")] public float screeReach = 40f;
+    [Tooltip("How much lower (0-1 height) than its surroundings ground must be to collect dirt, or higher to go stony.")]
+    public float ridgeDepth = 0.02f;
+    [Range(0f, 1f), Tooltip("How stony ridges and crests get.")] public float ridgeStony = 0.6f;
+    [Range(0f, 0.5f), Tooltip("How far noise pushes each border in or out, so edges wander.")] public float edgeNoise = 0.25f;
+    [Unit("m"), Tooltip("Size of the wanders in a border.")] public float edgeNoiseScale = 25f;
 
     [Header("Ground feel (GroundSurface)")]
     public SurfaceFeel offRoad = new(2.5f, 0.9f);
@@ -121,10 +130,13 @@ public sealed class RegionBuildSettings : ScriptableObject
     public Material siteMaterial;
 
     [Header("Terrain look")]
-    [Tooltip("Terrain material, e.g. the Shader Graph samples' TerrainLit (height-blended layers). Empty = URP's default.")]
+    [Tooltip("Terrain material: URP's Terrain/Lit with Enable Height-based Blend on. Empty = URP's default.")]
     public Material terrainMaterial;
-    [Tooltip("Four layers in this order: grass, forest floor, mud, rock. Anything else = plain colours.")]
-    public TerrainLayer[] terrainLayers = new TerrainLayer[0];
+    [Tooltip("Open ground. Grass.")] public TerrainLayer grassLayer;
+    [Tooltip("Forest floor, damp and low ground. Dirt.")] public TerrainLayer dirtLayer;
+    [Tooltip("Road verges, scree below cliffs, river banks, ridges. Gravel, Rocky, or Sand for a lowland region.")]
+    public TerrainLayer stonyLayer;
+    [Tooltip("Steep faces and cliffs. Rock.")] public TerrainLayer rockLayer;
 
     [Header("Ground cover (terrain details)")]
     [Tooltip("Detail cells per side (power of two). 2048 is about 4 m per cell on an 8 km region.")]
