@@ -9,13 +9,15 @@ using Debug = UnityEngine.Debug;
 /// Builds a drivable greybox of a generated region in the scene: terrain, water, roads and
 /// simple boxes for places. Generates the plan (RegionGenerator), then:
 ///
-///   1. Heights from the plan's elevation, with bumps, river channels and the escarpment's cliff
-///      (HeightField), then terraces on some hillsides (Terraces).
-///   2. Roads split so none overlap (RoadNetwork), then one at a time smoothed, given a
+///   1. Heights from the plan's elevation, with bumps and the escarpment's cliff (HeightField),
+///      then terraces on some hillsides (Terraces), then the shoreline made to match the map.
+///   2. Rivers traced downstream (RiverNetwork), then one at a time smoothed, given a downhill
+///      water surface, and cut into the ground (RiverShaper).
+///   3. Roads split so none overlap (RoadNetwork), then one at a time smoothed, given a
 ///      grade-limited height, and pressed into the ground (RoadShaper).
-///   3. Pads levelled under places.
-///   4. Scene objects: terrain (painted by TerrainPaint, ground cover by GroundCoverPaint), lake water,
-///      a mesh per road, boxes for places.
+///   4. Pads levelled under places.
+///   5. Scene objects: terrain (painted by TerrainPaint, ground cover by GroundCoverPaint), lake
+///      water, river water, a mesh per road, boxes for places.
 ///
 /// Build from the inspector buttons, or on Start. Keep this object at the world origin.
 /// Edit-mode builds aren't saved with the scene; they're rebuilt from the seed.
@@ -35,9 +37,11 @@ public sealed class RegionBuilder : MonoBehaviour
 
     GameObject root;
     readonly List<Object> createdAssets = new();    // meshes, materials, terrain data: destroyed on Clear
+    Material plainWater;    // made once per build when no water material is assigned
 
     public RegionMap Map { get; private set; }
     public IReadOnlyList<RoadPath> Roads { get; private set; }
+    public IReadOnlyList<RiverChannel> Rivers { get; private set; }
     public Pose EntryPose { get; private set; }
 
     public int Seed
@@ -72,13 +76,24 @@ public sealed class RegionBuilder : MonoBehaviour
             return;
         }
 
-        // 1. Heights, then terraces (before roads, so roads cut through them).
+        // 1. Heights, then terraces, then the shoreline (last, so nothing after it moves the shore).
         var frame = new RegionFrame(Map);
         var field = HeightField.FromRegion(Map, frame, regionSettings, buildSettings, seed);
         Terraces.Apply(field, Map, frame, buildSettings, seed);
+        float lakeLevel = regionSettings.seaLevel * regionSettings.relief;
+        field.KeepShoreline(Map, frame, lakeLevel, buildSettings);
 
-        // 2. Roads, in priority order, each pressed in before the next is shaped.
-        var shaper = new RoadShaper(field, frame, buildSettings);
+        // 2. Rivers, each cut in before the next is shaped, so tributaries meet them at their level.
+        var rivers = new RiverShaper(field, frame, Map, buildSettings, lakeLevel);
+        foreach (var path in RiverNetwork.Trace(Map, regionSettings.riverArea))
+        {
+            var river = rivers.Shape(path);
+            rivers.Press(river);
+        }
+        Rivers = rivers.Built;
+
+        // 3. Roads, in priority order, each pressed in before the next is shaped. Never below the lakes.
+        var shaper = new RoadShaper(field, frame, buildSettings, lakeLevel + buildSettings.landAboveWater);
         foreach (var segment in RoadNetwork.Split(Map))
         {
             var road = shaper.Shape(segment);
@@ -86,22 +101,23 @@ public sealed class RegionBuilder : MonoBehaviour
         }
         Roads = shaper.Built;
 
-        // 3. Pads, after the roads so each takes the height of the road it sits on.
+        // 4. Pads, after the roads so each takes the height of the road it sits on.
         foreach (var place in Map.Places)
             field.PressPad(frame.CellToWorld(place.Cell), buildSettings.padRadius, buildSettings.padBlend);
 
-        // 4. Scene.
+        // 5. Scene.
         root = new GameObject(RootName);
         root.transform.SetParent(transform, false);
         CreateTerrain(frame, field);
-        CreateWater(frame);
+        CreateWater(frame, lakeLevel);
+        foreach (var river in rivers.Built) CreateRiver(river);
         foreach (var road in shaper.Built) CreateRoad(road);
         foreach (var place in Map.Places) CreatePlace(place, frame, field, shaper);
         PlaceEntry(shaper.Built[0]);
 
         if (!Application.isPlaying) HideFromScene();
         Debug.Log($"Built region {seed} in {timer.ElapsedMilliseconds} ms: " +
-                  $"{shaper.Built.Count} road segments, {Map.Places.Count} places.", this);
+                  $"{shaper.Built.Count} road segments, {rivers.Built.Count} rivers, {Map.Places.Count} places.", this);
     }
 
     public void Clear()
@@ -113,6 +129,8 @@ public sealed class RegionBuilder : MonoBehaviour
         createdAssets.Clear();
         Map = null;
         Roads = null;
+        Rivers = null;
+        plainWater = null;
 
         // A build left over from before a script reload: the reference is gone, the object isn't.
         var leftover = transform.Find(RootName);
@@ -165,19 +183,38 @@ public sealed class RegionBuilder : MonoBehaviour
     }
 
     /// <summary>Lakes: one flat plane at sea level; the terrain hides it everywhere above water.</summary>
-    void CreateWater(RegionFrame frame)
+    /// <summary>
+    /// Lakes: one flat plane at lake level. The terrain hides it everywhere the map says land
+    /// (KeepShoreline holds land above it); rivers have their own water (CreateRiver).
+    /// </summary>
+    void CreateWater(RegionFrame frame, float lakeLevel)
     {
         var water = GameObject.CreatePrimitive(PrimitiveType.Plane);
-        water.name = "Water";
+        water.name = "Lake Water";
         Discard(water.GetComponent<Collider>());     // vehicles and players sink, not float
         water.transform.SetParent(root.transform, false);
 
         // Unity's plane is 10 × 10 units.
-        float seaHeight = regionSettings.seaLevel * regionSettings.relief;
-        water.transform.localPosition = new Vector3(frame.SizeX * 0.5f, seaHeight, frame.SizeZ * 0.5f);
+        water.transform.localPosition = new Vector3(frame.SizeX * 0.5f, lakeLevel, frame.SizeZ * 0.5f);
         water.transform.localScale = new Vector3(frame.SizeX / 10f, 1f, frame.SizeZ / 10f);
-        water.GetComponent<MeshRenderer>().sharedMaterial =
-            buildSettings.waterMaterial != null ? buildSettings.waterMaterial : PlainMaterial(new Color(0.18f, 0.30f, 0.40f));
+        water.GetComponent<MeshRenderer>().sharedMaterial = WaterMaterial();
+    }
+
+    /// <summary>A river's water strip, following its channel downhill. No collider: wheels and feet reach the bed.</summary>
+    void CreateRiver(RiverChannel river)
+    {
+        var go = new GameObject("River");
+        go.transform.SetParent(root.transform, false);
+        go.AddComponent<MeshFilter>().sharedMesh = Track(RiverMesh.Build(river));
+        go.AddComponent<MeshRenderer>().sharedMaterial =
+            buildSettings.riverMaterial != null ? buildSettings.riverMaterial : WaterMaterial();
+    }
+
+    Material WaterMaterial()
+    {
+        if (buildSettings.waterMaterial != null) return buildSettings.waterMaterial;
+        if (plainWater == null) plainWater = PlainMaterial(new Color(0.18f, 0.30f, 0.40f));
+        return plainWater;
     }
 
     void CreateRoad(RoadPath road)

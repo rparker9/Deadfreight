@@ -36,8 +36,29 @@ public sealed class RegionBuildSettings : ScriptableObject
     [Unit("m"), Tooltip("Size of the finest ground roughness.")] public float roughScale = 25f;
     [Unit("m")] public float roughHeight = 0.4f;
 
+    [Header("Lakes")]
+    [Unit("m"), Tooltip("Where the map says water, the lake bed is at least this far below the surface.")]
+    public float shoreDepth = 0.4f;
+    [Unit("m"), Tooltip("Where the map says land, the ground is at least this far above the water.")]
+    public float landAboveWater = 0.2f;
+
     [Header("Rivers")]
-    [Unit("m"), Tooltip("How deep river channels are carved.")] public float riverDepth = 3f;
+    [Unit("m"), Tooltip("Width of a river where it starts...")] public float riverMinWidth = 3f;
+    [Unit("m"), Tooltip("...growing by this per √(cells drained)...")] public float riverWidthGrowth = 0.3f;
+    [Unit("m"), Tooltip("...up to this.")] public float riverMaxWidth = 16f;
+    [Unit("m"), Tooltip("Depth of a river where it starts...")] public float riverMinDepth = 0.6f;
+    [Unit("m"), Tooltip("...growing by this per √(cells drained)...")] public float riverDepthGrowth = 0.06f;
+    [Unit("m"), Tooltip("...up to this.")] public float riverMaxDepth = 3f;
+    [Unit("m"), Tooltip("The water surface sits this far below the ground along the river's line.")]
+    public float riverBankDrop = 0.8f;
+    [Unit("m"), Tooltip("Ground beside the channel blends back to natural over this distance.")] public float riverBankWidth = 6f;
+    [Unit("m"), Tooltip("Banks lower than the water are raised to this far above it, so water never spills.")]
+    public float riverBankLift = 0.3f;
+    [Unit("m"), Tooltip("Distance between points along a river's line.")] public float riverSpacing = 2f;
+    [Tooltip("Like simplifyCells for roads: lower = rivers follow the plan more closely and wind more.")]
+    public float riverSimplifyCells = 0.5f;
+    [Unit("m"), Tooltip("The water surface is averaged over this distance before being forced downhill.")]
+    public float riverSmoothing = 30f;
 
     [Header("Escarpment")]
     [Unit("m"), Tooltip("Width of the escarpment's face in 3D. The plan's face is much wider; this redraws it as a cliff.")]
@@ -95,6 +116,7 @@ public sealed class RegionBuildSettings : ScriptableObject
     public Material backRoadMaterial;
     public Material laneMaterial;
     public Material waterMaterial;
+    [Tooltip("Optional: river water. Empty = the water material.")] public Material riverMaterial;
     public Material buildingMaterial;
     public Material siteMaterial;
 
@@ -135,6 +157,8 @@ public sealed class RegionBuildSettings : ScriptableObject
         detailResolution = Mathf.ClosestPowerOfTwo(Mathf.Clamp(detailResolution, 64, 4096));
         detailDistance = Mathf.Clamp(detailDistance, 0f, 250f);
         sampleSpacing = Mathf.Max(0.25f, sampleSpacing);
+        riverSpacing = Mathf.Max(0.25f, riverSpacing);
+        riverBankWidth = Mathf.Max(0.1f, riverBankWidth);
         profileSmoothing = Mathf.Max(0f, profileSmoothing);
         shoulder = Mathf.Max(0.1f, shoulder);
         padBlend = Mathf.Max(0.1f, padBlend);

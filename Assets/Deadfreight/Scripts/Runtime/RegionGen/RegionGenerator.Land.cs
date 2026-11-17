@@ -92,13 +92,18 @@ public sealed partial class RegionGenerator
     {
         var order = FillPits();
         var drainage = map.Drainage;
-        for (int i = 0; i < cellCount; i++) drainage[i] = 1f;
+        for (int i = 0; i < cellCount; i++)
+        {
+            drainage[i] = 1f;
+            map.FlowTo[i] = -1;
+        }
 
         for (int k = order.Count - 1; k >= 0; k--)     // highest first
         {
             int i = order[k];
             if (map.Water[i]) continue;
             int down = LowestNeighbourBelow(i, filled);
+            map.FlowTo[i] = down;
             if (down >= 0) drainage[down] += drainage[i];
         }
 

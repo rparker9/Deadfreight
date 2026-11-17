@@ -16,6 +16,9 @@ public sealed class HeightField
     // keeps the ground it was built on.
     readonly bool[,] roadCore;
 
+    // Samples under river water. Nothing grows there.
+    readonly bool[,] channel;
+
     public HeightField(int resolution, float sizeX, float sizeZ)
     {
         Resolution = resolution;
@@ -23,6 +26,7 @@ public sealed class HeightField
         SizeZ = sizeZ;
         Heights = new float[resolution, resolution];
         roadCore = new bool[resolution, resolution];
+        channel = new bool[resolution, resolution];
     }
 
     public float StepX => SizeX / (Resolution - 1);
@@ -32,13 +36,15 @@ public sealed class HeightField
 
     public bool IsRoadCore(int column, int row) => roadCore[row, column];
     public void MarkRoadCore(int column, int row) => roadCore[row, column] = true;
+    public bool IsChannel(int column, int row) => channel[row, column];
+    public void MarkChannel(int column, int row) => channel[row, column] = true;
 
     // ---------- building from the plan ----------
 
     /// <summary>
     /// Heights from the plan: its elevation scaled to metres with smooth (bicubic) interpolation,
-    /// bumps and roughness the 50 m grid can't hold, river channels carved in, and the
-    /// escarpment's face redrawn as a cliff.
+    /// bumps and roughness the 50 m grid can't hold, and the escarpment's face redrawn as a cliff.
+    /// River channels are cut later, along each river's line (RiverShaper).
     /// </summary>
     public static HeightField FromRegion(RegionMap map, RegionFrame frame, RegionSettings region, RegionBuildSettings build, int seed)
     {
@@ -58,10 +64,6 @@ public sealed class HeightField
             float h = GridSampling.Bicubic(map.Elevation, map.Width, map.Height, cell) * region.relief;
             h += Noise(world, build.bumpScale, bumpOffset) * build.bumpHeight;
             h += Noise(world, build.roughScale, roughOffset) * build.roughHeight;
-
-            // The river layer is 50 m cells; carving only where it reads above 0.5 keeps the channel narrower.
-            float river = GridSampling.Bilinear(map.River, map.Width, map.Height, cell);
-            h -= build.riverDepth * RegionMath.SmoothStep(0.5f, 1f, river);
 
             if (map.HasEscarpment) h += SharperFace(map, region, build, cell);
 
@@ -128,6 +130,26 @@ public sealed class HeightField
     }
 
     // ---------- shaping ----------
+
+    /// <summary>
+    /// Makes the shoreline match the map. The 3D build adds bumps, terraces and a sharper cliff the
+    /// plan never knew about, which can sink land below the lake plane or lift lake bed above it.
+    /// Where the plan says water, ground is held at least shoreDepth below lake level; where it
+    /// says land, at least landAboveWater above. The shore lands where the map's water layer
+    /// crosses one half.
+    /// </summary>
+    public void KeepShoreline(RegionMap map, RegionFrame frame, float lakeLevel, RegionBuildSettings build)
+    {
+        for (int row = 0; row < Resolution; row++)
+        for (int column = 0; column < Resolution; column++)
+        {
+            var cell = frame.WorldToCell(SampleToWorld(column, row));
+            bool water = GridSampling.Bilinear(map.Water, map.Width, map.Height, cell) >= 0.5f;
+            Heights[row, column] = water
+                ? Mathf.Min(Heights[row, column], lakeLevel - build.shoreDepth)
+                : Mathf.Max(Heights[row, column], lakeLevel + build.landAboveWater);
+        }
+    }
 
     /// <summary>
     /// Levels a round pad at the height of its centre: flat out to <paramref name="radius"/>,

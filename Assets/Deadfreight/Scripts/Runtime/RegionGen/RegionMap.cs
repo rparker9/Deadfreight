@@ -82,6 +82,7 @@ public sealed class RegionMap
     public readonly float[] Elevation;   // 0-1
     public readonly float[] Slope;       // rise over run
     public readonly float[] Drainage;    // cells draining through each cell; rivers are where it's large
+    public readonly int[] FlowTo;        // the cell each cell drains into, or -1 (lakes, and cells draining off the map)
     public readonly bool[] Water, River, Marsh, Forest, Hollow, Road, MainRoad;
 
     // The escarpment, if this region has one: a raised upland with a steep face along a line.
@@ -115,6 +116,7 @@ public sealed class RegionMap
         Elevation = new float[n];
         Slope = new float[n];
         Drainage = new float[n];
+        FlowTo = new int[n];
         Water = new bool[n];
         River = new bool[n];
         Marsh = new bool[n];

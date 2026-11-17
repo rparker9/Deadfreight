@@ -5,7 +5,7 @@ using UnityEngine;
 /// <summary>
 /// Scatters ground cover as terrain details. Each kind grows where TerrainPaint painted its ground
 /// (grass on grass, ferns on forest floor...), broken into patches by noise so it doesn't carpet
-/// everything evenly. Nothing grows on roads or under water.
+/// everything evenly. Nothing grows on roads, in river channels or under lakes.
 /// </summary>
 public static class GroundCoverPaint
 {
@@ -87,7 +87,7 @@ public static class GroundCoverPaint
         return prototypes;
     }
 
-    /// <summary>Detail cells where nothing may grow: road surfaces and lake water.</summary>
+    /// <summary>Detail cells where nothing may grow: road surfaces, river channels and lake water.</summary>
     static bool[,] BareGround(HeightField field, float waterHeight, int resolution)
     {
         var bare = new bool[resolution, resolution];
@@ -97,7 +97,7 @@ public static class GroundCoverPaint
             var world = CellCentre(field, resolution, column, row);
             int c = Mathf.Clamp(Mathf.RoundToInt(world.x / field.StepX), 0, field.Resolution - 1);
             int r = Mathf.Clamp(Mathf.RoundToInt(world.y / field.StepZ), 0, field.Resolution - 1);
-            bare[row, column] = field.IsRoadCore(c, r) || field.HeightAt(world) < waterHeight;
+            bare[row, column] = field.IsRoadCore(c, r) || field.IsChannel(c, r) || field.HeightAt(world) < waterHeight;
         }
         return bare;
     }

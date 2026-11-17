@@ -13,12 +13,25 @@ MonoBehaviour:
   m_Name: DefaultRegionBuildSettings
   m_EditorClassIdentifier: Assembly-CSharp::RegionBuildSettings
   heightmapResolution: 2049
-  alphamapResolution: 1024
+  alphamapResolution: 2048
   bumpScale: 120
   bumpHeight: 2.5
   roughScale: 25
   roughHeight: 0.4
-  riverDepth: 3
+  shoreDepth: 0.4
+  landAboveWater: 0.2
+  riverMinWidth: 3
+  riverWidthGrowth: 0.3
+  riverMaxWidth: 16
+  riverMinDepth: 0.6
+  riverDepthGrowth: 0.06
+  riverMaxDepth: 3
+  riverBankDrop: 0.8
+  riverBankWidth: 6
+  riverBankLift: 0.3
+  riverSpacing: 2
+  riverSimplifyCells: 0.5
+  riverSmoothing: 30
   cliffWidth: 8
   terraces: 1
   terraceZoneScale: 4000
@@ -59,70 +72,27 @@ MonoBehaviour:
   lane:
     rollingResistance: 2
     grip: 0.9
-  mainRoadMaterial: {fileID: 2100000, guid: cbb9c452575e03a4b84ed22420e8bdd8, type: 2}
-  backRoadMaterial: {fileID: 2100000, guid: cbb9c452575e03a4b84ed22420e8bdd8, type: 2}
+  mainRoadMaterial: {fileID: 0}
+  backRoadMaterial: {fileID: 0}
   laneMaterial: {fileID: 0}
-  waterMaterial: {fileID: 2100000, guid: ff70f747c02c6bd459e26da4a58059a1, type: 2}
+  waterMaterial: {fileID: 0}
+  riverMaterial: {fileID: 0}
   buildingMaterial: {fileID: 0}
   siteMaterial: {fileID: 0}
-  terrainMaterial: {fileID: 2100000, guid: 5659e95f2fde1374b900c72c95297b43, type: 2}
-  terrainLayers: []
-  detailResolution: 512
-  detailDistance: 30
+  terrainMaterial: {fileID: 2100000, guid: 6aa744a8b65ac5f4ea3a642a565fa79e, type: 2}
+  terrainLayers:
+  - {fileID: 8574412962073106934, guid: d50cafa0d386c174c83eae635927137e, type: 2}
+  - {fileID: 8574412962073106934, guid: 7c07cded8a8876b4690c7cbfc1b0a8fe, type: 2}
+  - {fileID: 8574412962073106934, guid: eca23fd431b7ab6419ab7385db92ed7a, type: 2}
+  - {fileID: 8574412962073106934, guid: 4a85cfd91a5d12e4daf8be3a06d001a8, type: 2}
+  detailResolution: 2048
+  detailDistance: 80
   coverPatchScale: 40
   coverPatchiness: 0.6
   groundCover:
   - prototype: {fileID: 0}
     grows: 0
-    amount: 1
-    density: 0.1
-    scale: {x: 0.8, y: 1.2}
-    alignToGround: 0.5
-  - prototype: {fileID: 0}
-    grows: 0
-    amount: 0.7
-    density: 0.1
-    scale: {x: 0.8, y: 1.2}
-    alignToGround: 0.5
-  - prototype: {fileID: 0}
-    grows: 0
-    amount: 0.35
-    density: 0.1
-    scale: {x: 0.8, y: 1.2}
-    alignToGround: 0.5
-  - prototype: {fileID: 919132149155446097, guid: aa65d51d082376248a826fb63d28c16b, type: 3}
-    grows: 0
-    amount: 0.3
-    density: 0.1
-    scale: {x: 0.8, y: 1.2}
-    alignToGround: 0.5
-  - prototype: {fileID: 2085449277718671952, guid: 6629880e46886724fa0107d3035304e6, type: 3}
-    grows: 1
-    amount: 0.6
-    density: 0.1
-    scale: {x: 0.8, y: 1.2}
-    alignToGround: 0.3
-  - prototype: {fileID: 4798742950742889349, guid: 5e7ace55a7bfd0d4f9ba3c05024e9d79, type: 3}
-    grows: 1
-    amount: 0.4
-    density: 0.1
-    scale: {x: 0.8, y: 1.2}
-    alignToGround: 0.3
-  - prototype: {fileID: 1647502441230210415, guid: 4786e2698ac97a949a9209febfcbd49b, type: 3}
-    grows: 1
-    amount: 0.4
-    density: 0.1
-    scale: {x: 0.8, y: 1.2}
-    alignToGround: 0.3
-  - prototype: {fileID: 919132149155446097, guid: 9853cab8f58017644ab258d4db95419c, type: 3}
-    grows: 2
-    amount: 0.6
-    density: 0.1
-    scale: {x: 0.8, y: 1.2}
-    alignToGround: 0.5
-  - prototype: {fileID: 919132149155446097, guid: 6c19ddb5d34287242a76e39011a33bc9, type: 3}
-    grows: 3
-    amount: 0.5
-    density: 0.1
-    scale: {x: 0.8, y: 1.2}
-    alignToGround: 1
+    amount: 0
+    density: 0
+    scale: {x: 0, y: 0}
+    alignToGround: 0

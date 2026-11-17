@@ -31,6 +31,7 @@ public sealed class RoadShaper
     readonly HeightField field;
     readonly RegionFrame frame;
     readonly RegionBuildSettings settings;
+    readonly float lowestSurface;       // no road surface below this (just above lake level)
     readonly List<RoadPath> built = new();
 
     // Scratch for pressing one road: for each sample it touches, the nearest centre point's distance and height.
@@ -38,11 +39,12 @@ public sealed class RoadShaper
     readonly float[,] nearestHeight;
     readonly List<Vector2Int> touched = new();
 
-    public RoadShaper(HeightField field, RegionFrame frame, RegionBuildSettings settings)
+    public RoadShaper(HeightField field, RegionFrame frame, RegionBuildSettings settings, float lowestSurface)
     {
         this.field = field;
         this.frame = frame;
         this.settings = settings;
+        this.lowestSurface = lowestSurface;
         nearestDistance = new float[field.Resolution, field.Resolution];
         nearestHeight = new float[field.Resolution, field.Resolution];
         for (int r = 0; r < field.Resolution; r++)
@@ -57,7 +59,7 @@ public sealed class RoadShaper
     public RoadPath Shape(RoadSegment segment)
     {
         // 1. Simplify, then move to world space.
-        var corners = Simplify(segment.Cells, settings.simplifyCells);
+        var corners = PathSmoothing.Simplify(segment.Cells, settings.simplifyCells);
         var points = new List<Vector2>(corners.Count);
         foreach (var corner in corners) points.Add(frame.CellToWorld(corner));
 
@@ -73,10 +75,10 @@ public sealed class RoadShaper
             points[^1] = new Vector2(end.x, end.z);
             endHeight = end.y;
         }
-        var spline = SmoothSpline(points);
+        var spline = PathSmoothing.SmoothSpline(points);
 
         // 3. Sample, 4. profile.
-        var line = SampleEvenly(spline, settings.sampleSpacing);
+        var line = PathSmoothing.SampleEvenly(spline, settings.sampleSpacing);
         var heights = Profile(line, startHeight, endHeight);
 
         var road = new RoadPath
@@ -93,99 +95,9 @@ public sealed class RoadShaper
     }
 
     /// <summary>
-    /// Ramer-Douglas-Peucker: keeps the ends, then recursively keeps the cell furthest from the
-    /// straight line between kept cells while it is more than <paramref name="tolerance"/> cells off.
-    /// </summary>
-    static List<Vector2> Simplify(List<Vector2Int> cells, float tolerance)
-    {
-        var keep = new bool[cells.Count];
-        keep[0] = keep[^1] = true;
-        SimplifyBetween(cells, 0, cells.Count - 1, tolerance, keep);
-
-        var result = new List<Vector2>();
-        for (int i = 0; i < cells.Count; i++)
-            if (keep[i]) result.Add(cells[i]);
-        return result;
-    }
-
-    static void SimplifyBetween(List<Vector2Int> cells, int first, int last, float tolerance, bool[] keep)
-    {
-        float worst = 0f;
-        int worstIndex = -1;
-        for (int i = first + 1; i < last; i++)
-        {
-            float d = DistanceToLine(cells[i], cells[first], cells[last]);
-            if (d > worst)
-            {
-                worst = d;
-                worstIndex = i;
-            }
-        }
-        if (worstIndex < 0 || worst <= tolerance) return;
-
-        keep[worstIndex] = true;
-        SimplifyBetween(cells, first, worstIndex, tolerance, keep);
-        SimplifyBetween(cells, worstIndex, last, tolerance, keep);
-    }
-
-    static float DistanceToLine(Vector2 p, Vector2 a, Vector2 b)
-    {
-        var ab = b - a;
-        float lengthSqr = ab.sqrMagnitude;
-        if (lengthSqr < 1e-6f) return Vector2.Distance(p, a);
-        float t = Mathf.Clamp01(Vector2.Dot(p - a, ab) / lengthSqr);
-        return Vector2.Distance(p, a + ab * t);
-    }
-
-    /// <summary>A flat (y = 0) spline through the points with automatic smooth tangents.</summary>
-    static Spline SmoothSpline(List<Vector2> points)
-    {
-        var spline = new Spline();
-        foreach (var p in points) spline.Add(new BezierKnot(new float3(p.x, 0f, p.y)), TangentMode.AutoSmooth);
-        return spline;
-    }
-
-    /// <summary>
-    /// Points every <paramref name="spacing"/> metres along the spline, plus its exact end.
-    /// Spline t isn't proportional to distance, so this steps finely in t and measures as it goes.
-    /// </summary>
-    static List<Vector2> SampleEvenly(Spline spline, float spacing)
-    {
-        float length = spline.GetLength();
-        int steps = Mathf.Max(8, Mathf.CeilToInt(length / spacing * 4f));
-
-        var result = new List<Vector2>();
-        Vector3 previous = (Vector3)spline.EvaluatePosition(0f);
-        result.Add(new Vector2(previous.x, previous.z));
-
-        float travelled = 0f, nextAt = spacing;
-        for (int s = 1; s <= steps; s++)
-        {
-            Vector3 current = (Vector3)spline.EvaluatePosition(s / (float)steps);
-            float step = Vector3.Distance(previous, current);
-
-            // Emit every point that falls inside this little step.
-            while (travelled + step >= nextAt)
-            {
-                var p = Vector3.Lerp(previous, current, (nextAt - travelled) / step);
-                result.Add(new Vector2(p.x, p.z));
-                nextAt += spacing;
-            }
-            travelled += step;
-            previous = current;
-        }
-
-        // Finish exactly on the end, replacing a point that landed just short of it.
-        var end = new Vector2(previous.x, previous.z);
-        if (Vector2.Distance(result[^1], end) < spacing * 0.5f && result.Count > 2) result[^1] = end;
-        else result.Add(end);
-        return result;
-    }
-
-    /// <summary>
     /// The road's height along its length: ground height, averaged over profileSmoothing metres,
-    /// then held to maxGrade (a forward and a backward pass). Pinned ends keep the height of
-    /// the road they join.
+    /// then held to maxGrade (a forward and a backward pass), and never below lowestSurface so
+    /// smoothing can't sink a lakeside road. Pinned ends keep the height of the road they join.
     /// </summary>
     float[] Profile(List<Vector2> line, float? startHeight, float? endHeight)
     {
@@ -197,7 +109,7 @@ public sealed class RoadShaper
         int halfWindow = Mathf.Max(1, Mathf.RoundToInt(settings.profileSmoothing / settings.sampleSpacing * 0.5f));
         for (int pass = 0; pass < 3; pass++)
         {
-            heights = MovingAverage(heights, halfWindow);
+            heights = PathSmoothing.MovingAverage(heights, halfWindow);
             Pin(heights, startHeight, endHeight);
         }
 
@@ -210,6 +122,7 @@ public sealed class RoadShaper
                 heights[i] = Mathf.Clamp(heights[i], heights[i + 1] - maxRise, heights[i + 1] + maxRise);
             Pin(heights, startHeight, endHeight);
         }
+        for (int i = 0; i < n; i++) heights[i] = Mathf.Max(heights[i], lowestSurface);
         return heights;
     }
 
@@ -217,22 +130,6 @@ public sealed class RoadShaper
     {
         if (start.HasValue) heights[0] = start.Value;
         if (end.HasValue) heights[^1] = end.Value;
-    }
-
-    /// <summary>Each value becomes the mean of its neighbours within halfWindow (fewer at the ends).</summary>
-    static float[] MovingAverage(float[] values, int halfWindow)
-    {
-        int n = values.Length;
-        var prefix = new float[n + 1];
-        for (int i = 0; i < n; i++) prefix[i + 1] = prefix[i] + values[i];
-
-        var result = new float[n];
-        for (int i = 0; i < n; i++)
-        {
-            int from = Mathf.Max(0, i - halfWindow), to = Mathf.Min(n - 1, i + halfWindow);
-            result[i] = (prefix[to + 1] - prefix[from]) / (to - from + 1);
-        }
-        return result;
     }
 
     /// <summary>Raises each spline knot to the road height at that spot, so the scene spline matches the road.</summary>
