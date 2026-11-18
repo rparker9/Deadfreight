@@ -26,6 +26,7 @@ public sealed partial class RegionGenerator
     {
         finder = new GridPathfinder(width, height);
         baseCost = BaseCost();
+        map.RoadCost = baseCost;
 
         var cells = new List<Vector2Int>();
         for (int k = 0; k < settings.entryStub; k++) cells.Add(map.Entry.StubCell(k));
@@ -64,9 +65,15 @@ public sealed partial class RegionGenerator
             float c = 1f + map.Slope[i] * settings.slopeCost;
             if (map.Forest[i]) c += settings.forestCost;
             if (map.Marsh[i]) c += settings.marshCost;
-            if (map.River[i]) c += settings.fordCost;
+            if (map.River[i])
+            {
+                // Wider rivers cost more to ford: fordCost for the narrowest, in proportion above that.
+                float riverWidth = float.IsNaN(map.RiverWidth[i]) ? settings.riverMinWidth : map.RiverWidth[i];
+                c += settings.fordCost * riverWidth / Mathf.Max(0.1f, settings.riverMinWidth);
+            }
             if (map.Water[i]) c += Impassable;
             if (map.Cliff[i]) c += settings.cliffCost;
+            c += map.Terrace[i] * settings.terraceCost;
 
             // Keep roads off the map edge, except where the road comes in.
             bool atEntry = Distance(new Vector2Int(x, y), map.Entry.Cell) < settings.entryClear;

@@ -14,47 +14,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RegionBuildSettings
   heightmapResolution: 2049
   alphamapResolution: 2048
-  bumpScale: 120
-  bumpHeight: 2.5
-  roughScale: 25
-  roughHeight: 1
-  cliffWidth: 8
-  terraces: 1
-  terraceZoneScale: 4000
-  terraceZoneStart: 0.55
-  terraceZoneFull: 0.7
-  terraceStep: 8
-  terraceRiser: 0.35
-  terraceTilt: 0.2
-  terraceWobble: 1.5
-  terraceWobbleScale: 120
-  terraceSlopeMin: 0.05
-  terraceSlopeMax: 0.35
   shoreDepth: 0.4
   landAboveWater: 0.2
-  riverMinWidth: 3
-  riverWidthGrowth: 0.3
-  riverMaxWidth: 16
-  riverMinDepth: 0.6
-  riverDepthGrowth: 0.06
-  riverMaxDepth: 3
-  riverBankDrop: 0.8
   riverBankWidth: 6
   riverBankLift: 0.3
   riverSpacing: 2
   riverSimplifyCells: 0.5
-  riverSmoothing: 30
   mainRoadWidth: 6.5
   backRoadWidth: 4.5
   laneWidth: 3.2
   sampleSpacing: 1.5
   simplifyCells: 0.45
-  profileSmoothing: 25
-  maxGrade: 0.12
   shoulder: 12
   surfaceLift: 0.05
-  padRadius: 14
-  padBlend: 10
   buildingSize: {x: 8, y: 5, z: 10}
   siteSize: {x: 20, y: 8, z: 20}
   rockSlopeStart: 0.45
@@ -73,21 +45,14 @@ MonoBehaviour:
   dirtLayer: {fileID: 8574412962073106934, guid: d1cb3b9c34b038f4b9c397829fce2a12, type: 2}
   stonyLayer: {fileID: 8574412962073106934, guid: 6cd76f06e7472e9429be263b17207733, type: 2}
   rockLayer: {fileID: 8574412962073106934, guid: 7020c3ecf65a8dd409caa90bcf41fde4, type: 2}
-  biomes:
-    deepForest: {fileID: 11400000, guid: d2b20db9dfd440d469f4c979ccff7ab3, type: 2}
-    forestEdge: {fileID: 11400000, guid: e4c648bad859c604e99338f4816b31c5, type: 2}
-    field: {fileID: 11400000, guid: 7b5d69029e717b84996c4d375bd35b88, type: 2}
-    wetland: {fileID: 11400000, guid: 95c54df3e975d7244a13bb000555df61, type: 2}
-    riverbank: {fileID: 11400000, guid: dad8107351adc094284608ef574da15f, type: 2}
-    hollow: {fileID: 11400000, guid: 374bd74ce3568b449b3e7eb4c07aba76, type: 2}
-    upland: {fileID: 11400000, guid: b3ac2b1510f6c314bbdb98c1eda6cc94, type: 2}
-    verge: {fileID: 11400000, guid: 2fc0c4eeea6c46946ad096e56727e9ad, type: 2}
+  biomeBorder: 20
   biomeResolution: 1024
-  biomeVergeWidth: 8
-  riverbankWidth: 15
-  uplandSlope: {x: 0.35, y: 0.55}
-  uplandHeight: {x: 0.75, y: 0.9}
-  deepForestDepth: 60
+  verge:
+    biome: {fileID: 11400000, guid: 2fc0c4eeea6c46946ad096e56727e9ad, type: 2}
+    width: 8
+  riverbank:
+    biome: {fileID: 11400000, guid: dad8107351adc094284608ef574da15f, type: 2}
+    width: 15
   treeMaxSlope: 0.6
   treeRoadClearance: 3
   treeRiverClearance: 2
@@ -114,7 +79,7 @@ MonoBehaviour:
   buildingMaterial: {fileID: 0}
   siteMaterial: {fileID: 0}
   offRoad:
-    rollingResistance: 2.5
+    rollingResistance: 10
     grip: 0.9
   mainRoad:
     rollingResistance: 1

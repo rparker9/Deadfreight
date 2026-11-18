@@ -2878,7 +2878,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RegionBuilder
   regionSettings: {fileID: 11400000, guid: 007eaf37b5c80414d8f6f9d6d5ddb67d, type: 2}
   buildSettings: {fileID: 11400000, guid: 4a7128911a93d064ab284b14d9c6b0d8, type: 2}
-  seed: 453
+  seed: 1
   buildOnStart: 1
   placeAtEntry: {fileID: 1637565307}
 --- !u!4 &1431377713
@@ -2903,7 +2903,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1431377711}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5ba732cba0ff14c408dcf9144690757c, type: 3}
   m_Name: 
@@ -2913,7 +2913,7 @@ MonoBehaviour:
   skybox: {fileID: 2100000, guid: a8aea4c82e67cbf408cc6cf969529d13, type: 2}
   nightVolume: {fileID: 1127940389}
   startHour: 7
-  dayLength: 2
+  dayLength: 5
   paused: 0
   sunrise: 90
   pathTilt: 30

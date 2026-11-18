@@ -12,6 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 34de2749e789eb24380dd0daa1f65531, type: 3}
   m_Name: Verge
   m_EditorClassIdentifier: Assembly-CSharp::Biome
+  previewColour: {r: 0.82, g: 0.67, b: 0.43, a: 1}
+  bumpScale: 15
+  bumpHeight: 0.3
+  roughScale: 4
+  roughHeight: 0.08
   trees: []
   treeSpacing: 10
   treeFill: 0
@@ -19,16 +24,16 @@ MonoBehaviour:
   - prototype: {fileID: 919132149155446097, guid: 33e5daa5697d2c249978a01761142b3a, type: 3}
     amount: 0.6
     density: 1
-    scale: {x: 0.8, y: 2.5}
+    scale: {x: 0.8, y: 1.2}
     alignToGround: 0.6
   - prototype: {fileID: 919132149155446097, guid: 75de1995989eb2b44a9f4f846f834185, type: 3}
     amount: 0.4
     density: 1
-    scale: {x: 0.8, y: 2.5}
+    scale: {x: 0.8, y: 1.2}
     alignToGround: 0.6
   - prototype: {fileID: 919132149155446097, guid: 38dbeadb5b1f0d94d9de1d4e93c56740, type: 3}
     amount: 0.3
     density: 0.8
-    scale: {x: 0.9, y: 2.75}
+    scale: {x: 0.9, y: 1.4}
     alignToGround: 0.4
   patchiness: 0.3

@@ -1,123 +1,117 @@
 // Scripts/Runtime/RegionBuild/Biomes/BiomeMap.cs
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// How much of each biome role is at every point of the region, worked out once from the
-/// finished ground (GroundSurvey). Each point gets a weight per role, and the weights add up to
-/// 1, so where two biomes meet their trees and foliage mix rather than stopping at a line.
-/// Roads, river water and lakes get no weight at all: nothing grows there.
+/// How much of each biome grows at every point of the region, for trees and foliage. Worked out
+/// once, at about biomeResolution points per side, from:
 ///
-/// Roles claim the ground in this order, each taking its share of what's left:
+///   1. the edge bands, narrow strips the plan's 50 m cells can't hold: the verge beside every
+///      road, then the bank along river water (each a Biome in the build settings, or none);
+///   2. the plan's biome per cell (BiomeBlend) for the rest.
 ///
-///   Verge      within biomeVergeWidth of a road
-///   Riverbank  within riverbankWidth of river water
-///   Wetland    the plan's marsh
-///   Hollow     the plan's hollows
-///   Upland     steep ground (uplandSlope) or high ground (uplandHeight)
-///   Forest     the plan's forest, split into DeepForest past deepForestDepth in from its edge
-///              and ForestEdge before that
-///   Field      whatever is left
-///
-/// Borders wander with noise (edgeNoise, edgeNoiseScale), the same as the terrain paint's.
+/// Each biome asset is one slot, even if it's both an area biome and a band. Weights at a point
+/// add up to 1 at most; roads, river water and lakes get none, so nothing grows there.
 /// </summary>
 public sealed class BiomeMap
 {
-    const int Roles = BiomeSet.RoleCount;
-
     public readonly int Resolution;
     public readonly float SizeX, SizeZ;
 
-    readonly byte[] weights;    // [(row * Resolution + column) * Roles + role], 0-255
+    /// <summary>Every biome that grows anywhere, once each. Weights are per slot.</summary>
+    public readonly IReadOnlyList<Biome> Slots;
 
-    BiomeMap(int resolution, float sizeX, float sizeZ)
+    readonly byte[] weights;    // [(row * Resolution + column) * SlotCount + slot], 0-255
+    readonly int slotCount;
+
+    BiomeMap(int resolution, float sizeX, float sizeZ, List<Biome> slots)
     {
         Resolution = resolution;
         SizeX = sizeX;
         SizeZ = sizeZ;
-        weights = new byte[resolution * resolution * Roles];
+        Slots = slots;
+        slotCount = Mathf.Max(1, slots.Count);
+        weights = new byte[resolution * resolution * slotCount];
     }
 
-    public static BiomeMap Build(GroundSurvey survey, int seed)
+    public static BiomeMap Build(GroundSurvey survey, BiomeBlend blend)
     {
         var settings = survey.Settings;
-        var map = new BiomeMap(settings.biomeResolution, survey.Field.SizeX, survey.Field.SizeZ);
+        var plan = survey.Map;
 
-        var rng = new System.Random(seed ^ 0x0b10);
-        var warpOffset = TerrainPaint.RandomOffset(rng);
-        var forestNoise = TerrainPaint.RandomOffset(rng);
-        var otherNoise = TerrainPaint.RandomOffset(rng);
-        var one = new float[Roles];
+        // Slots: the plan's biomes in order, then the band biomes if they're new.
+        var slots = new List<Biome>();
+        int SlotOf(Biome biome)
+        {
+            if (biome == null) return -1;
+            int at = slots.IndexOf(biome);
+            if (at >= 0) return at;
+            slots.Add(biome);
+            return slots.Count - 1;
+        }
+        var planSlot = new int[plan.Biomes.Count];
+        for (int b = 0; b < planSlot.Length; b++) planSlot[b] = SlotOf(plan.Biomes[b]);
+        int vergeSlot = SlotOf(settings.verge.biome);
+        int bankSlot = SlotOf(settings.riverbank.biome);
+
+        var map = new BiomeMap(settings.biomeResolution, survey.Field.SizeX, survey.Field.SizeZ, slots);
+        var biomes = new int[BiomeBlend.MaxAtPoint];
+        var shares = new float[BiomeBlend.MaxAtPoint];
+        var point = new float[map.slotCount];
 
         for (int row = 0; row < map.Resolution; row++)
         for (int column = 0; column < map.Resolution; column++)
         {
             var world = map.PointToWorld(column, row);
-            var cell = survey.Cell(world) + TerrainPaint.Warp(world, warpOffset) * settings.paintWarp;
-            Weigh(survey, world, cell, forestNoise, otherNoise, one);
+            System.Array.Clear(point, 0, point.Length);
 
-            int at = (row * map.Resolution + column) * Roles;
-            for (int role = 0; role < Roles; role++) map.weights[at + role] = (byte)Mathf.RoundToInt(one[role] * 255f);
+            if (!survey.OnRoad(world) && !survey.InRiver(world) && !survey.BelowLake(world))
+            {
+                float left = 1f;
+                if (vergeSlot >= 0) left = Claim(point, vergeSlot, TerrainPaint.Within(survey.FromRoad(world), settings.verge.width), left);
+                if (bankSlot >= 0) left = Claim(point, bankSlot, TerrainPaint.Within(survey.FromRiver(world), settings.riverbank.width), left);
+
+                int count = blend.At(world, biomes, shares);
+                for (int k = 0; k < count; k++)
+                {
+                    int slot = planSlot[biomes[k]];
+                    if (slot >= 0) point[slot] += shares[k] * left;
+                }
+            }
+
+            int at = (row * map.Resolution + column) * map.slotCount;
+            for (int slot = 0; slot < map.slotCount; slot++)
+                map.weights[at + slot] = (byte)Mathf.RoundToInt(Mathf.Clamp01(point[slot]) * 255f);
         }
         return map;
     }
 
-    /// <summary>The weights at one point, by the rules in the class summary.</summary>
-    static void Weigh(GroundSurvey survey, Vector2 world, Vector2 cell, Vector2 forestNoise, Vector2 otherNoise, float[] into)
+    /// <summary>Gives a band its share of what's left at a point; returns what's left after it.</summary>
+    static float Claim(float[] point, int slot, float strength, float left)
     {
-        System.Array.Clear(into, 0, Roles);
-        if (survey.OnRoad(world) || survey.InRiver(world) || survey.BelowLake(world)) return;
-
-        var settings = survey.Settings;
-        float noise = TerrainPaint.EdgeNoise(world, otherNoise, settings);
-        float Wander(float amount) => TerrainPaint.Wander(amount, noise, settings.edgeNoise);
-
-        float verge = TerrainPaint.Within(survey.FromRoad(world), settings.biomeVergeWidth);
-        float riverbank = TerrainPaint.Within(survey.FromRiver(world), settings.riverbankWidth);
-        float wetland = Wander(survey.Marsh(cell));
-        float hollow = Wander(survey.Hollow(cell));
-        float steep = RegionMath.SmoothStep(settings.uplandSlope.x, settings.uplandSlope.y, survey.Slope(world));
-        float high = RegionMath.SmoothStep(settings.uplandHeight.x, settings.uplandHeight.y, survey.Elevation(cell));
-        float upland = Wander(Mathf.Max(steep, high));
-        float forest = TerrainPaint.Wander(survey.Forest(cell), TerrainPaint.EdgeNoise(world, forestNoise, settings), settings.edgeNoise);
-        float deep = RegionMath.SmoothStep(settings.deepForestDepth * 0.5f, settings.deepForestDepth, survey.ForestDepth(cell));
-
-        float left = 1f;
-        float Claim(float strength)
-        {
-            float share = strength * left;
-            left -= share;
-            return share;
-        }
-
-        into[(int)BiomeRole.Verge] = Claim(verge);
-        into[(int)BiomeRole.Riverbank] = Claim(riverbank);
-        into[(int)BiomeRole.Wetland] = Claim(wetland);
-        into[(int)BiomeRole.Hollow] = Claim(hollow);
-        into[(int)BiomeRole.Upland] = Claim(upland);
-        float forestShare = Claim(forest);
-        into[(int)BiomeRole.DeepForest] = forestShare * deep;
-        into[(int)BiomeRole.ForestEdge] = forestShare * (1f - deep);
-        into[(int)BiomeRole.Field] = left;
+        float share = strength * left;
+        point[slot] += share;
+        return left - share;
     }
 
     // ---------- reading ----------
 
-    /// <summary>Weight 0-1 of one role at a world point (from the nearest map point).</summary>
-    public float Weight(Vector2 world, BiomeRole role) => weights[Index(world) + (int)role] / 255f;
+    /// <summary>Weight 0-1 of one slot at a world point (from the nearest map point).</summary>
+    public float Weight(Vector2 world, int slot) => weights[Index(world) + slot] / 255f;
 
-    /// <summary>All roles' weights at a world point, 0-1 each.</summary>
+    /// <summary>All slots' weights at a world point, 0-1 each. <paramref name="into"/> needs Slots.Count room.</summary>
     public void Weights(Vector2 world, float[] into)
     {
         int at = Index(world);
-        for (int role = 0; role < Roles; role++) into[role] = weights[at + role] / 255f;
+        for (int slot = 0; slot < Slots.Count; slot++) into[slot] = weights[at + slot] / 255f;
     }
 
-    /// <summary>The role with the most weight at a map point, or -1 where nothing grows.</summary>
+    /// <summary>The slot with the most weight at a map point, or -1 where nothing grows.</summary>
     public int Strongest(int column, int row)
     {
-        int at = (row * Resolution + column) * Roles, best = -1, bestWeight = 0;
-        for (int role = 0; role < Roles; role++)
-            if (weights[at + role] > bestWeight) (best, bestWeight) = (role, weights[at + role]);
+        int at = (row * Resolution + column) * slotCount, best = -1, bestWeight = 0;
+        for (int slot = 0; slot < Slots.Count; slot++)
+            if (weights[at + slot] > bestWeight) (best, bestWeight) = (slot, weights[at + slot]);
         return best;
     }
 
@@ -128,6 +122,6 @@ public sealed class BiomeMap
     {
         int column = Mathf.Clamp(Mathf.RoundToInt(world.x / SizeX * (Resolution - 1)), 0, Resolution - 1);
         int row = Mathf.Clamp(Mathf.RoundToInt(world.y / SizeZ * (Resolution - 1)), 0, Resolution - 1);
-        return (row * Resolution + column) * Roles;
+        return (row * Resolution + column) * slotCount;
     }
 }

@@ -34,6 +34,9 @@ public sealed partial class RegionGenerator
         BuildHollows();
         BuildSlope();
         MarkCliffs();
+        if (settings.terraces) PlanTerraces();       // RegionGenerator.Terraces.cs
+        PlanRiverChannels();                        // RegionGenerator.Channels.cs
+        AssignBiomes();                             // RegionGenerator.Biomes.cs
     }
 
     // ---------------- height ----------------

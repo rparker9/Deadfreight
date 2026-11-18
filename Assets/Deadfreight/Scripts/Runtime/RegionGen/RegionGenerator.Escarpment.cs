@@ -6,6 +6,8 @@ using UnityEngine;
 // trip crosses it and choosing a pass is part of choosing a route.
 //
 //   Land:   RaiseEscarpment, after hill country; MarkCliffs, once rivers and slope are known.
+//           The face's profile (RegionMap.FaceLift) is a cliff escarpmentCliffWidth wide, or a
+//           ramp at passes; the 3D build draws the same profile between cell centres.
 //   Places: entry on an edge the face doesn't cross (EdgeTouchesFace); site on the far side (AcrossEscarpment).
 //   Roads:  cliff cells cost cliffCost; any road that still crosses one becomes a cutting (CutThroughCliffs).
 public sealed partial class RegionGenerator
@@ -58,6 +60,9 @@ public sealed partial class RegionGenerator
             spots[k] = faceStart + (faceEnd - faceStart) * (k + 0.5f + jitter) / passCount;
         }
 
+        map.FaceHalfWidth = 0.5f * settings.escarpmentCliffWidth / settings.cellSize;
+        map.PassRamp = settings.passRamp;
+
         float rise = settings.escarpmentHeight / settings.relief;
         float waterShare = GridOps.ShareBelow(map.Elevation, settings.seaLevel);
         for (int i = 0; i < cellCount; i++)
@@ -70,7 +75,7 @@ public sealed partial class RegionGenerator
             }
             map.ScarpPass[i] = pass;
 
-            float halfWidth = Mathf.Lerp(settings.escarpmentFace, settings.passRamp, pass);
+            float halfWidth = Mathf.Lerp(map.FaceHalfWidth, map.PassRamp, pass);     // the same profile as RegionMap.FaceLift
             map.Elevation[i] += rise * RegionMath.SmoothStep(-halfWidth, halfWidth, map.Scarp[i]);
         }
 
@@ -111,8 +116,9 @@ public sealed partial class RegionGenerator
 
     /// <summary>
     /// Roads that crossed the face anyway (no pass could be reached) become cuttings: the cells
-    /// around them stop being cliff and count as a pass, so the 3D build doesn't draw a sheer face
-    /// across the road.
+    /// around them stop being cliff and count as a pass, and their heights are reshaped from the
+    /// cliff to a pass's ramp, so plan and 3D agree there's no sheer face across the road.
+    /// Slopes are measured again afterwards.
     /// </summary>
     void CutThroughCliffs()
     {
@@ -129,9 +135,13 @@ public sealed partial class RegionGenerator
                 var c = new Vector2Int(cx + dx, cy + dy);
                 if (!map.InBounds(c)) continue;
                 int j = map.Index(c);
+                if (map.ScarpPass[j] >= 1f) continue;       // already a ramp
+                float before = map.FaceLift(map.Scarp[j], map.ScarpPass[j]);
                 map.Cliff[j] = false;
                 map.ScarpPass[j] = 1f;
+                map.Elevation[j] += (map.FaceLift(map.Scarp[j], 1f) - before) / settings.relief;
             }
         }
+        if (map.Cuttings > 0) BuildSlope();
     }
 }

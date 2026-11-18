@@ -17,10 +17,19 @@ public struct SurfaceFeel
     }
 }
 
+/// <summary>A strip of growth along a road or river: what grows there and how far out from the edge.</summary>
+[Serializable]
+public sealed class EdgeBand
+{
+    [Tooltip("Its trees and foliage (its ground noise isn't used). Empty = no band.")] public Biome biome;
+    [Unit("m"), Tooltip("Full strength out to half this from the road's or water's edge, fading out by here.")] public float width = 8f;
+}
+
 /// <summary>
-/// How the 3D region is built from the generated plan (RegionSettings shapes the plan itself),
-/// in build order: the terrain's shape, water, roads, places, texture paint, what grows and
-/// lies on the ground, then looks and ground feel. Materials and texture layers are optional;
+/// How the 3D region is drawn from the generated plan. RegionSettings decides the land (heights,
+/// face, terraces, river channels, road heights, pads, biomes); these only control resolution,
+/// detail too fine for the plan, texture paint, what grows and lies on the ground, looks and
+/// ground feel, in build order. Materials and texture layers are optional;
 /// plain colours are used without them. Distances are in metres unless shown otherwise.
 /// </summary>
 [CreateAssetMenu(fileName = "RegionBuildSettings", menuName = "Region Gen/Region Build Settings")]
@@ -36,31 +45,6 @@ public sealed class RegionBuildSettings : ScriptableObject
     [Tooltip("Texture-paint samples per side (power of two). 1024 is about 8 m per pixel on an 8 km region.")]
     public int alphamapResolution = 1024;
 
-    [Header("Terrain: detail on top of the plan")]
-    [Unit("m"), Tooltip("Size of the small bumps added over the plan's hills...")] public float bumpScale = 120f;
-    [Unit("m"), Tooltip("...and how tall they are.")] public float bumpHeight = 2.5f;
-    [Unit("m"), Tooltip("Size of the finest ground roughness...")] public float roughScale = 25f;
-    [Unit("m"), Tooltip("...and how tall it is.")] public float roughHeight = 0.4f;
-
-    [Header("Terrain: escarpment")]
-    [Unit("m"), Tooltip("Width of the escarpment's face in 3D. The plan's face is much wider; this redraws it as a cliff.")]
-    public float cliffWidth = 8f;
-
-    [Header("Terrain: terraces")]
-    [Tooltip("Step hillsides into shelves in some zones of the region.")] public bool terraces = true;
-    [Unit("m"), Tooltip("Size of terrace zones.")] public float terraceZoneScale = 4000f;
-    [Range(0f, 1f), Tooltip("Zone noise above this starts terracing...")] public float terraceZoneStart = 0.55f;
-    [Range(0f, 1f), Tooltip("...and from here it's fully terraced.")] public float terraceZoneFull = 0.7f;
-    [Unit("m"), Tooltip("Height of one shelf.")] public float terraceStep = 8f;
-    [Range(0.05f, 1f), Tooltip("Share of each step taken by the riser. Lower = sharper risers, wider shelves.")]
-    public float terraceRiser = 0.35f;
-    [Range(0f, 1f), Tooltip("Share of the original slope shelves keep, so they tilt like real terraces.")]
-    public float terraceTilt = 0.2f;
-    [Unit("m"), Tooltip("How far shelf edges wander off the contour lines...")] public float terraceWobble = 1.5f;
-    [Unit("m"), Tooltip("...and over what distance.")] public float terraceWobbleScale = 120f;
-    [Range(0f, 1f), Tooltip("Only ground steeper than this (rise over run) is terraced...")] public float terraceSlopeMin = 0.05f;
-    [Range(0f, 1f), Tooltip("...and not ground steeper than this.")] public float terraceSlopeMax = 0.35f;
-
     // ---------- water ----------
 
     [Header("Lakes")]
@@ -69,17 +53,7 @@ public sealed class RegionBuildSettings : ScriptableObject
     [Unit("m"), Tooltip("Where the map says land, the ground is at least this far above the water. Roads never go lower either.")]
     public float landAboveWater = 0.2f;
 
-    [Header("Rivers: channel")]
-    [Unit("m"), Tooltip("Width where a river starts...")] public float riverMinWidth = 3f;
-    [Unit("m"), Tooltip("...growing by this per √(cells drained)...")] public float riverWidthGrowth = 0.3f;
-    [Unit("m"), Tooltip("...up to this.")] public float riverMaxWidth = 16f;
-    [Unit("m"), Tooltip("Depth where a river starts...")] public float riverMinDepth = 0.6f;
-    [Unit("m"), Tooltip("...growing by this per √(cells drained)...")] public float riverDepthGrowth = 0.06f;
-    [Unit("m"), Tooltip("...up to this.")] public float riverMaxDepth = 3f;
-
-    [Header("Rivers: banks")]
-    [Unit("m"), Tooltip("The water surface sits this far below the ground along the river's line.")]
-    public float riverBankDrop = 0.8f;
+    [Header("Rivers: banks (width, depth and water level come from the plan)")]
     [Unit("m"), Tooltip("Ground beside the channel blends back to natural over this distance.")]
     public float riverBankWidth = 6f;
     [Unit("m"), Tooltip("Banks lower than the water are raised to this far above it, so water never spills.")]
@@ -89,8 +63,6 @@ public sealed class RegionBuildSettings : ScriptableObject
     [Unit("m"), Tooltip("Distance between points along a river's line.")] public float riverSpacing = 2f;
     [Range(0f, 3f), Tooltip("Like Simplify Cells for roads: lower = rivers follow the plan more closely and wind more.")]
     public float riverSimplifyCells = 0.5f;
-    [Unit("m"), Tooltip("The water surface is averaged over this distance before being forced downhill.")]
-    public float riverSmoothing = 30f;
 
     // ---------- roads ----------
 
@@ -107,25 +79,15 @@ public sealed class RegionBuildSettings : ScriptableObject
                             "Higher = straighter roads that follow the plan less exactly (and cut through more ground).")]
     public float simplifyCells = 0.45f;
 
-    [Header("Roads: height and setting into the ground")]
-    [Unit("m"), Tooltip("Road heights are averaged over this distance, so roads cut through bumps and fill dips. " +
-                        "Longer = flatter roads with deeper cuttings and higher embankments.")]
-    public float profileSmoothing = 25f;
-    
-    [Range(0.02f, 0.25f), Tooltip("Steepest grade allowed, rise over run (0.1 = 10%). Lower = more cutting and filling on hills.")]
-    public float maxGrade = 0.12f;
-    
+    [Header("Roads: setting into the ground (heights and grade come from the plan)")]
     [Unit("m"), Tooltip("Ground beside the road blends from road height back to natural ground over this distance. " +
                         "Wider = cuttings and embankments slope gently instead of standing as walls.")]
-    
     public float shoulder = 15f;
     [Unit("m"), Tooltip("Road meshes sit this far above the ground pressed under them.")] public float surfaceLift = 0.05f;
 
     // ---------- places ----------
 
-    [Header("Places")]
-    [Unit("m"), Tooltip("Flat ground around each place...")] public float padRadius = 14f;
-    [Unit("m"), Tooltip("...blending back to natural ground over this distance.")] public float padBlend = 10f;
+    [Header("Places (pads come from the plan)")]
     [Tooltip("Placeholder box size (m) for stops.")] public Vector3 buildingSize = new(8f, 5f, 10f);
     [Tooltip("Placeholder box size (m) for the site.")] public Vector3 siteSize = new(20f, 8f, 20f);
 
@@ -160,19 +122,15 @@ public sealed class RegionBuildSettings : ScriptableObject
 
     // ---------- what grows ----------
 
-    [Header("Biomes")]
-    [Tooltip("What grows in each kind of ground. Empty slots grow nothing.")]
-    public BiomeSet biomes = new();
-    [Tooltip("Points per side of the biome map. 1024 is about 8 m apart on an 8 km region.")]
+    [Header("Biomes (which cell gets which comes from the plan)")]
+    [Unit("m"), Tooltip("Width of the band at each plan-cell border where one biome blends into the next.")]
+    public float biomeBorder = 20f;
+    [Tooltip("Points per side of the map of what grows where. 1024 is about 8 m apart on an 8 km region.")]
     public int biomeResolution = 1024;
-    [Unit("m"), Tooltip("Verge: the band beside every road.")] public float biomeVergeWidth = 8f;
-    [Unit("m"), Tooltip("Riverbank: the band along river water.")] public float riverbankWidth = 15f;
-    [Tooltip("Upland: ground steeper than x (rise over run) starts to count, and from y it's all upland...")]
-    public Vector2 uplandSlope = new(0.35f, 0.55f);
-    [Tooltip("...as does ground higher than x, fully from y, on the plan's 0-1 height scale.")]
-    public Vector2 uplandHeight = new(0.75f, 0.9f);
-    [Unit("m"), Tooltip("DeepForest: this far in from a forest's edge. Before that it's ForestEdge.")]
-    public float deepForestDepth = 60f;
+
+    [Header("Edge bands (narrower than a plan cell, laid over the biomes)")]
+    [Tooltip("What grows beside every road, and how far out.")] public EdgeBand verge = new() { width = 8f };
+    [Tooltip("What grows along river water, and how far out.")] public EdgeBand riverbank = new() { width = 15f };
 
     [Header("Trees: where")]
     [Range(0f, 2f), Tooltip("No trees on ground steeper than this (rise over run).")] public float treeMaxSlope = 0.6f;
@@ -252,24 +210,17 @@ public sealed class RegionBuildSettings : ScriptableObject
         alphamapResolution = Mathf.ClosestPowerOfTwo(Mathf.Clamp(alphamapResolution, 64, 4096));
         detailResolution = Mathf.ClosestPowerOfTwo(Mathf.Clamp(detailResolution, 64, 4096));
         biomeResolution = Mathf.Clamp(biomeResolution, 64, 4096);
+        biomeBorder = Mathf.Max(0f, biomeBorder);
         detailDistance = Mathf.Clamp(detailDistance, 0f, 250f);
 
         sampleSpacing = Mathf.Max(0.25f, sampleSpacing);
         riverSpacing = Mathf.Max(0.25f, riverSpacing);
         riverBankWidth = Mathf.Max(0.1f, riverBankWidth);
-        profileSmoothing = Mathf.Max(0f, profileSmoothing);
         shoulder = Mathf.Max(0.1f, shoulder);
-        padBlend = Mathf.Max(0.1f, padBlend);
         treeGap = Mathf.Max(0f, treeGap);
         foliagePatchScale = Mathf.Max(1f, foliagePatchScale);
 
-        riverMaxWidth = Mathf.Max(riverMinWidth, riverMaxWidth);
-        riverMaxDepth = Mathf.Max(riverMinDepth, riverMaxDepth);
-        terraceZoneFull = Mathf.Max(terraceZoneStart, terraceZoneFull);
-        terraceSlopeMax = Mathf.Max(terraceSlopeMin, terraceSlopeMax);
         rockSlopeFull = Mathf.Max(rockSlopeStart, rockSlopeFull);
-        uplandSlope.y = Mathf.Max(uplandSlope.x, uplandSlope.y);
-        uplandHeight.y = Mathf.Max(uplandHeight.x, uplandHeight.y);
         treeThinTo = Mathf.Max(treeThinFrom, treeThinTo);
     }
 

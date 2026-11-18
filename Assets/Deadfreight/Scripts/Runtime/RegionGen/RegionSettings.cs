@@ -59,7 +59,9 @@ public sealed class RegionSettings : ScriptableObject
     public float escarpmentOffset = 0.15f;
     [Range(0f, 30f), Tooltip("Cells the face wanders either side of a straight line.")]
     public float escarpmentWobble = 8f;
-    [Range(0.5f, 6f), Tooltip("Half-width of the face in the plan, in cells. The 3D build redraws it as a much steeper cliff.")]
+    [Unit("m"), Tooltip("Width of the cliff face itself. The plan's heights and the 3D ground both use this profile.")]
+    public float escarpmentCliffWidth = 8f;
+    [Range(0.5f, 6f), Tooltip("Half-width in cells of the band either side of the face that roads treat as cliff, and that entries keep off.")]
     public float escarpmentFace = 1.5f;
 
     [Space]
@@ -72,11 +74,45 @@ public sealed class RegionSettings : ScriptableObject
     [Range(2f, 40f), Tooltip("Cells either side of the face that a pass's climb is spread over. Bigger = a longer, gentler ramp.")]
     public float passRamp = 12f;
 
+    [Header("Land: terraces")]
+    [Tooltip("Step hillsides into shelves in some zones of the region. The plan decides where; the 3D build draws the shelves.")]
+    public bool terraces = true;
+    [Range(10f, 300f), Tooltip("Cells across one terrace zone. Bigger = fewer, larger zones.")]
+    public float terraceZoneScale = 80f;
+    [Range(0f, 1f), Tooltip("Where the zone noise passes this, hillsides start to be terraced...")]
+    public float terraceZoneStart = 0.55f;
+    [Range(0f, 1f), Tooltip("...and from here they're fully terraced.")]
+    public float terraceZoneFull = 0.7f;
+    [Range(0f, 1f), Tooltip("Only ground steeper than this (rise over run) is terraced...")]
+    public float terraceSlopeMin = 0.05f;
+    [Range(0f, 1f), Tooltip("...and not ground steeper than this.")]
+    public float terraceSlopeMax = 0.35f;
+    [Unit("m"), Tooltip("Height of one shelf.")]
+    public float terraceStep = 8f;
+    [Range(0.05f, 1f), Tooltip("Share of each step taken by the riser. Lower = sharper risers, wider shelves.")]
+    public float terraceRiser = 0.35f;
+    [Range(0f, 1f), Tooltip("Share of the hill's own slope each shelf keeps, so shelves tilt like real terraces.")]
+    public float terraceTilt = 0.2f;
+    [Unit("m"), Tooltip("How far shelf edges wander off the contour lines...")]
+    public float terraceWobble = 1.5f;
+    [Unit("m"), Tooltip("...and over what distance.")]
+    public float terraceWobbleScale = 120f;
+
     // ---------- water ----------
 
     [Header("Water: rivers")]
     [Range(20f, 1000f), Tooltip("A cell becomes river once this many cells drain through it. Lower = more, smaller streams.")]
     public float riverArea = 250f;
+
+    [Header("Water: river channels")]
+    [Unit("m"), Tooltip("Width of a river where it starts...")] public float riverMinWidth = 3f;
+    [Unit("m"), Tooltip("...growing by this per √(cells drained)...")] public float riverWidthGrowth = 0.3f;
+    [Unit("m"), Tooltip("...up to this.")] public float riverMaxWidth = 16f;
+    [Unit("m"), Tooltip("Depth of a river where it starts...")] public float riverMinDepth = 0.6f;
+    [Unit("m"), Tooltip("...growing by this per √(cells drained)...")] public float riverDepthGrowth = 0.06f;
+    [Unit("m"), Tooltip("...up to this.")] public float riverMaxDepth = 3f;
+    [Unit("m"), Tooltip("The water surface sits this far below the ground. It never rises downstream, nor drops below the lakes.")]
+    public float riverBankDrop = 0.8f;
 
     [Header("Water: river valleys")]
     [Tooltip("Lower the land around rivers into valleys, wider and deeper downstream.")]
@@ -120,6 +156,12 @@ public sealed class RegionSettings : ScriptableObject
     [Unit("m"), Tooltip("Hollows are dug this much deeper into bowls, so fog has somewhere to pool.")]
     public float hollowBowl = 4f;
 
+    // ---------- biomes ----------
+
+    [Header("Biomes")]
+    [Tooltip("Which biome each cell gets: checked top to bottom, first match wins. End with a catch-all (no conditions).")]
+    public BiomeRule[] biomes = new BiomeRule[0];
+
     // ---------- the route ----------
 
     [Header("Entry (the road into the region)")]
@@ -147,6 +189,10 @@ public sealed class RegionSettings : ScriptableObject
     public float placeSpacing = 17f;
     [Range(0.02f, 0.4f), Tooltip("Places need ground flatter than this (rise over run).")]
     public float maxPlaceSlope = 0.12f;
+    [Unit("m"), Tooltip("Flat ground around each place, at the height of the road beside it...")]
+    public float padRadius = 14f;
+    [Unit("m"), Tooltip("...blending back to the ground over this distance.")]
+    public float padBlend = 10f;
 
     // ---------- roads ----------
 
@@ -159,10 +205,20 @@ public sealed class RegionSettings : ScriptableObject
     public float forestCost = 2f;
     [Min(0f), Tooltip("Extra cost through marsh.")]
     public float marshCost = 3f;
-    [Min(0f), Tooltip("Extra cost to ford a river. Higher = fewer crossings.")]
+    [Min(0f), Tooltip("Extra cost to ford the narrowest river, more for wider ones in proportion. Higher = fewer crossings.")]
     public float fordCost = 12f;
+    [Min(0f), Tooltip("Extra cost on fully terraced ground (less where terracing fades out). Higher = roads go round terraces.")]
+    public float terraceCost = 3f;
     [Min(0f), Tooltip("Extra cost per cell of cliff, so roads use the passes. Not impassable: if no pass can be reached, a road cuts through.")]
     public float cliffCost = 200f;
+
+    [Header("Roads: height")]
+    [Range(0.02f, 0.25f), Tooltip("Steepest grade a road may have, rise over run (0.12 = 12%). Lower = more cutting and filling on hills.")]
+    public float maxGrade = 0.12f;
+    [Unit("m"), Tooltip("Road heights are averaged over this distance, so roads cut through bumps and fill dips. Longer = flatter, deeper cuts.")]
+    public float profileSmoothing = 25f;
+    [Unit("m"), Tooltip("Roads stay at least this far above the lakes.")]
+    public float roadAboveWater = 0.5f;
 
     [Header("Road routing: map edge and search")]
     [Range(0, 30), Tooltip("Roads avoid this many cells next to the map edge (except at the entry)...")]
@@ -231,6 +287,14 @@ public sealed class RegionSettings : ScriptableObject
         relief = Mathf.Max(1f, relief);
         hillZoneFull = Mathf.Max(hillZoneStart, hillZoneFull);
         passCountMax = Mathf.Max(passCountMin, passCountMax);
+        terraceZoneFull = Mathf.Max(terraceZoneStart, terraceZoneFull);
+        terraceSlopeMax = Mathf.Max(terraceSlopeMin, terraceSlopeMax);
+        terraceStep = Mathf.Max(0.5f, terraceStep);
+        escarpmentCliffWidth = Mathf.Max(0.5f, escarpmentCliffWidth);
+        riverMaxWidth = Mathf.Max(riverMinWidth, riverMaxWidth);
+        riverMaxDepth = Mathf.Max(riverMinDepth, riverMaxDepth);
+        padBlend = Mathf.Max(0.1f, padBlend);
+        profileSmoothing = Mathf.Max(0f, profileSmoothing);
         valleyMaxWidth = Mathf.Max(valleyWidth, valleyMaxWidth);
         valleyMaxDepth = Mathf.Max(valleyDepth, valleyMaxDepth);
         siteMaxDistance = Mathf.Max(siteMinDistance, siteMaxDistance);

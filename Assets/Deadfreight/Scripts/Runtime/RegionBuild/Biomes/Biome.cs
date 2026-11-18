@@ -3,29 +3,28 @@ using System;
 using UnityEngine;
 
 /// <summary>
-/// The kinds of ground a region is made of. The builder works out where each one is (BiomeMap);
-/// what grows there comes from the Biome asset in that role's slot (BiomeSet).
-/// </summary>
-public enum BiomeRole
-{
-    DeepForest,     // well inside the plan's forests
-    ForestEdge,     // the outer band of a forest, thinning toward the open
-    Field,          // open ground: whatever isn't one of the others
-    Wetland,        // the plan's marsh
-    Riverbank,      // a band along river water
-    Hollow,         // the plan's hollows: low, damp, foggy bowls
-    Upland,         // high or steep ground
-    Verge,          // a band beside every road
-}
-
-/// <summary>
-/// What grows in one kind of ground: its trees and its foliage, and how thickly. Entries don't
-/// say where they grow; the biome does, by being put in a role's slot. One asset can fill
-/// several slots.
+/// One kind of ground: what grows there (trees, foliage) and its fine ground noise. Where a
+/// biome goes is up to each region: its RegionSettings list rules for which cells get which
+/// biome, so one asset can be placed differently in different region types.
+///
+/// The noise is the only way a biome changes the land, and it's kept from changing the plan:
+/// each cell's own average of it is subtracted, which takes out anything larger than a cell, so
+/// cell heights, slopes and water stay as planned.
+/// It fades out on cliffs and lakes; roads and rivers are pressed in over it.
 /// </summary>
 [CreateAssetMenu(fileName = "Biome", menuName = "Deadfreight/Biome")]
 public sealed class Biome : ScriptableObject
 {
+    [Tooltip("How this biome shows in the Region Preview and the builder's biome picture.")]
+    public Color previewColour = new(0.6f, 0.65f, 0.45f);
+
+    [Header("Ground noise (fine detail only)")]
+    [Unit("m"), Tooltip("Size of the bumps. Features bigger than a plan cell (50 m) are mostly taken out, so keep this well below it.")]
+    public float bumpScale = 15f;
+    [Unit("m"), Tooltip("How tall the bumps are.")] public float bumpHeight = 0.3f;
+    [Unit("m"), Tooltip("Size of the finest roughness...")] public float roughScale = 4f;
+    [Unit("m"), Tooltip("...and how tall it is.")] public float roughHeight = 0.08f;
+
     [Header("Trees")]
     public BiomeTree[] trees = new BiomeTree[0];
     [Unit("m"), Tooltip("Trees are considered on a grid this far apart. Smaller = denser (and many more trees).")]
@@ -38,7 +37,14 @@ public sealed class Biome : ScriptableObject
     [Range(0f, 1f), Tooltip("0 = foliage is even all over this biome; 1 = it only grows in patches.")]
     public float patchiness = 0.6f;
 
-    void OnValidate() => treeSpacing = Mathf.Max(2f, treeSpacing);
+    public bool HasNoise => bumpHeight > 0f || roughHeight > 0f;
+
+    void OnValidate()
+    {
+        treeSpacing = Mathf.Max(2f, treeSpacing);
+        bumpScale = Mathf.Max(0.5f, bumpScale);
+        roughScale = Mathf.Max(0.5f, roughScale);
+    }
 }
 
 /// <summary>One kind of tree in a biome.</summary>

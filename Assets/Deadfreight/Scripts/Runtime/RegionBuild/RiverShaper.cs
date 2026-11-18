@@ -12,14 +12,14 @@ public sealed class RiverChannel
 }
 
 /// <summary>
-/// Turns traced rivers into channels with water. For each river:
+/// Turns traced rivers into channels with water. The plan decides each river cell's width,
+/// depth and water level (RegionGenerator.Channels); this draws them at full resolution:
 ///
 ///   1. Smooth: plan cells → simplified → spline → points every riverSpacing metres (PathSmoothing).
 ///      A river that joins another ends on that river's line.
-///   2. Size: width and depth from how much drains through, never shrinking downstream.
-///   3. Surface: riverBankDrop below the ground, averaged, then made to only ever run downhill,
-///      never below lake level, ending level with the lake or the river it joins.
-///   4. Press: cut a rounded bed under the surface, and raise any bank lower than the water so it
+///   2. Size and surface: the plan's values, read along the line between its cells. The surface
+///      is held so it never rises downstream and ends level with the lake or the river it joins.
+///   3. Press: cut a rounded bed under the surface, and raise any bank lower than the water so it
 ///      can't spill.
 ///
 /// Rivers are shaped and pressed one at a time, in order, before roads: tributaries then meet the
@@ -76,20 +76,27 @@ public sealed class RiverShaper
         }
         var line = PathSmoothing.SampleEvenly(PathSmoothing.SmoothSpline(points), settings.riverSpacing);
 
-        // 2. Size. 3. Surface.
-        var sizes = SizesAlong(path, line.Count);
-        var surface = Surface(line, endSurface);
+        // 2. Size and surface, from the plan.
+        var surface = new float[line.Count];
+        var widths = new float[line.Count];
+        var depths = new float[line.Count];
+        for (int i = 0; i < line.Count; i++)
+        {
+            float along = i / (float)Mathf.Max(1, line.Count - 1);
+            surface[i] = AlongPath(map.RiverLevel, path, along);
+            widths[i] = AlongPath(map.RiverWidth, path, along);
+            depths[i] = AlongPath(map.RiverDepth, path, along);
+        }
+        KeepDownhill(surface, endSurface);
 
         // Cut at least half a height sample wider than the water, so narrow streams still get a channel.
         float sampleMargin = 0.5f * Mathf.Max(field.StepX, field.StepZ);
         var channel = new RiverChannel { End = path.End };
         for (int i = 0; i < line.Count; i++)
         {
-            float width = Mathf.Clamp(settings.riverMinWidth + settings.riverWidthGrowth * sizes[i], settings.riverMinWidth, settings.riverMaxWidth);
-            float depth = Mathf.Clamp(settings.riverMinDepth + settings.riverDepthGrowth * sizes[i], settings.riverMinDepth, settings.riverMaxDepth);
             channel.Points.Add(new Vector3(line[i].x, surface[i], line[i].y));
-            channel.HalfWidths.Add(width * 0.5f + sampleMargin);
-            channel.Depths.Add(depth);
+            channel.HalfWidths.Add(widths[i] * 0.5f + sampleMargin);
+            channel.Depths.Add(depths[i]);
         }
 
         built.Add(channel);
@@ -97,41 +104,39 @@ public sealed class RiverShaper
     }
 
     /// <summary>
-    /// √(cells drained) at each point, read from the plan cell the same share of the way along the
-    /// river, and never shrinking downstream (the last cell may be a lake, which drains nothing).
+    /// A plan value (per cell, NaN off rivers) part of the way along a river: between the two
+    /// cells either side, skipping cells without a value (the lake a river ends in).
     /// </summary>
-    float[] SizesAlong(RiverPath path, int count)
+    float AlongPath(float[] values, RiverPath path, float along)
     {
-        var sizes = new float[count];
-        float largest = 0f;
-        for (int i = 0; i < count; i++)
+        float at = along * (path.Cells.Count - 1);
+        int before = Mathf.FloorToInt(at), after = Mathf.Min(before + 1, path.Cells.Count - 1);
+        float a = ValueNear(values, path, before), b = ValueNear(values, path, after);
+        return Mathf.Lerp(a, b, at - before);
+    }
+
+    /// <summary>The value at a path cell, or the nearest cell before it that has one.</summary>
+    float ValueNear(float[] values, RiverPath path, int k)
+    {
+        for (int j = k; j >= 0; j--)
         {
-            int cell = Mathf.RoundToInt(i / (float)Mathf.Max(1, count - 1) * (path.Cells.Count - 1));
-            largest = Mathf.Max(largest, Mathf.Sqrt(map.Drainage[map.Index(path.Cells[cell])]));
-            sizes[i] = largest;
+            float value = values[map.Index(path.Cells[j])];
+            if (!float.IsNaN(value)) return value;
         }
-        return sizes;
+        return values[map.Index(path.Cells[0])];    // the source always has one
     }
 
     /// <summary>
-    /// Water height along the river: riverBankDrop below the ground, averaged over riverSmoothing,
-    /// then each point no higher than the one upstream and none below where the river ends (the
-    /// lake, or the river it joins).
+    /// The water never rises downstream, never sits below where the river ends (the lake, or the
+    /// river it joins), and meets that end exactly.
     /// </summary>
-    float[] Surface(List<Vector2> line, float? endSurface)
+    void KeepDownhill(float[] surface, float? endSurface)
     {
-        int n = line.Count;
-        var surface = new float[n];
-        for (int i = 0; i < n; i++) surface[i] = field.HeightAt(line[i]) - settings.riverBankDrop;
-
-        int halfWindow = Mathf.Max(1, Mathf.RoundToInt(settings.riverSmoothing / settings.riverSpacing * 0.5f));
-        surface = PathSmoothing.MovingAverage(surface, halfWindow);
-
+        int n = surface.Length;
         float lowest = endSurface ?? lakeLevel;
         surface[0] = Mathf.Max(surface[0], lowest);
         for (int i = 1; i < n; i++) surface[i] = Mathf.Clamp(surface[i], lowest, surface[i - 1]);
         if (endSurface.HasValue) surface[n - 1] = endSurface.Value;
-        return surface;
     }
 
     // ---------- press ----------

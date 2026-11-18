@@ -6,10 +6,10 @@ using UnityEngine;
 /// Plants trees on the terrain, using Unity's terrain tree system (instanced, culled by distance,
 /// collisions from each prefab's collider).
 ///
-/// Each biome role with a Biome in its slot plants its own trees: points on a jittered grid the
-/// biome's treeSpacing apart, each kept with a chance of
+/// Each biome (the plan's, and the edge bands') plants its own trees: points on a jittered grid
+/// the biome's treeSpacing apart, each kept with a chance of
 ///
-///     the biome's treeFill  ×  that role's weight there (BiomeMap)  ×  the thinning away from roads
+///     the biome's treeFill  ×  its weight there (BiomeMap)  ×  the thinning away from roads
 ///
 /// so where biomes blend their trees mix, and forests are thick along the roads the players see
 /// and thinner deep in the woods they don't (that's most of the trees, so it's the big saving).
@@ -28,7 +28,7 @@ public static class TreePlanting
     public static int Plant(TerrainData data, GroundSurvey survey, BiomeMap biomes, Footprints rocks, int seed)
     {
         var settings = survey.Settings;
-        var prototypeIndex = Prototypes(settings.biomes, out var prototypes);
+        var prototypeIndex = Prototypes(biomes.Slots, out var prototypes);
         data.treePrototypes = prototypes;
         if (prototypes.Length == 0) return 0;
 
@@ -37,14 +37,15 @@ public static class TreePlanting
         var standing = new Footprints();
         float gap = 0.5f * settings.treeGap;   // each tree's footprint radius: two never closer than treeGap
 
-        for (int role = 0; role < BiomeSet.RoleCount; role++)
+        for (int slot = 0; slot < biomes.Slots.Count; slot++)
         {
-            var biome = settings.biomes[role];
+            var biome = biomes.Slots[slot];
             if (biome == null || biome.trees.Length == 0) continue;
+            int thisSlot = slot;    // the lambda below runs now, but keep it from reading a changing loop variable
 
             Scatter(survey.Field, biome.treeSpacing, rng, world =>
             {
-                float chance = biome.treeFill * biomes.Weight(world, (BiomeRole)role) * RoadThinning(survey.FromRoad(world), settings);
+                float chance = biome.treeFill * biomes.Weight(world, thisSlot) * RoadThinning(survey.FromRoad(world), settings);
                 if (rng.NextDouble() >= chance || !Allowed(world, survey)) return;
                 if (rocks.Overlaps(world, gap) || standing.Overlaps(world, gap)) return;
 
@@ -92,13 +93,12 @@ public static class TreePlanting
     /// One terrain tree prototype per distinct prefab across all biomes (a prefab in two biomes is
     /// still one prototype). Returns each prefab's prototype index.
     /// </summary>
-    static Dictionary<GameObject, int> Prototypes(BiomeSet biomes, out TreePrototype[] prototypes)
+    static Dictionary<GameObject, int> Prototypes(IReadOnlyList<Biome> biomes, out TreePrototype[] prototypes)
     {
         var index = new Dictionary<GameObject, int>();
         var list = new List<TreePrototype>();
-        for (int role = 0; role < BiomeSet.RoleCount; role++)
+        foreach (var biome in biomes)
         {
-            var biome = biomes[role];
             if (biome == null) continue;
             foreach (var tree in biome.trees)
             {

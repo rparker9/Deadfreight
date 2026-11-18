@@ -4,8 +4,8 @@ using UnityEngine;
 
 /// <summary>
 /// Everything worth knowing about the finished ground at any point, for deciding what grows or
-/// lies there: how far to the nearest road and river, how deep into a forest, how steep, how
-/// high, whether it's marsh, hollow, ridge, cliff or scree. The distance fields are worked out
+/// lies there: how far to the nearest road and river, how steep, how high, whether it's
+/// forest, marsh, hollow, ridge, cliff or scree. The distance fields are worked out
 /// once here, so BiomeMap, TreePlanting and RockPlacing can ask cheaply and agree with each other.
 /// </summary>
 public sealed class GroundSurvey
@@ -19,7 +19,6 @@ public sealed class GroundSurvey
     public readonly float LakeLevel;
 
     readonly float[] toRoad, toRiver;       // metres, per height sample
-    readonly float[] forestDepth;           // per plan cell: cells to the nearest cell without forest
     readonly float[] cellsToCliff;          // per plan cell
     readonly float[] relief;                // per plan cell: positive on ridges, negative in hollows
     readonly List<Vector2> pads = new();
@@ -35,9 +34,6 @@ public sealed class GroundSurvey
         toRoad = MetresToMarked(field, field.IsRoadCore);
         toRiver = MetresToMarked(field, field.IsChannel);
 
-        var open = new bool[map.Forest.Length];
-        for (int i = 0; i < open.Length; i++) open[i] = !map.Forest[i];
-        GridOps.NearestMarked(open, map.Width, map.Height, out forestDepth, out _);
         GridOps.NearestMarked(map.Cliff, map.Width, map.Height, out cellsToCliff, out _);
         relief = TerrainPaint.RidgesAndHollows(map);
 
@@ -60,7 +56,7 @@ public sealed class GroundSurvey
     /// <summary>Whether a point is on, or within <paramref name="margin"/> metres of, the flat pad around a place.</summary>
     public bool NearPad(Vector2 world, float margin)
     {
-        float reach = Settings.padRadius + margin;
+        float reach = Map.PadRadius + margin;
         foreach (var pad in pads)
             if ((pad - world).sqrMagnitude < reach * reach) return true;
         return false;
@@ -85,14 +81,6 @@ public sealed class GroundSurvey
     public float Marsh(Vector2 cell) => Soft(Map.Marsh, cell);
     public float Hollow(Vector2 cell) => Soft(Map.Hollow, cell);
     public float Cliff(Vector2 cell) => GridSampling.Bilinear(Map.Cliff, Map.Width, Map.Height, cell);
-
-    /// <summary>Metres in from a forest's edge; 0 outside forests.</summary>
-    public float ForestDepth(Vector2 cell)
-    {
-        // A forest cell next to open ground is 1 cell away, but the edge lies halfway between them.
-        float cells = GridSampling.Bilinear(forestDepth, Map.Width, Map.Height, cell) - 0.5f;
-        return Mathf.Max(0f, cells * Map.CellSize);
-    }
 
     /// <summary>0-1: how much the land stands above its surroundings (a ridge or crest).</summary>
     public float Ridge(Vector2 cell) =>

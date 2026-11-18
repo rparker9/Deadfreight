@@ -8,8 +8,8 @@ using UnityEngine;
 ///   Outcrops      cliffs, steep ground (the paint's rock slopes) and ridge tops
 ///   Scree         out from the foot of the escarpment's cliffs
 ///   Riverbeds     in river water and up to riverReach from it
-///   Forest floor  wherever the biome map has forest (deep or edge)
-///   Open ground   wherever the biome map has field
+///   Forest floor  wherever the plan has forest
+///   Open ground   wherever the plan has no forest or marsh
 ///
 /// Biggest landforms first, so later rocks fit around earlier ones. Rocks only overlap a little
 /// (Nestle), enough for a cluster to sit together. Each rock is sunk into the ground a little
@@ -44,7 +44,7 @@ public static class RockPlacing
     }
 
     /// <returns>The placed rocks' footprints (Count = how many were placed).</returns>
-    public static Footprints Place(Transform parent, GroundSurvey survey, BiomeMap biomes, int seed)
+    public static Footprints Place(Transform parent, GroundSurvey survey, int seed)
     {
         var set = survey.Settings.rocks;
         if (set == null) return new Footprints();
@@ -69,8 +69,12 @@ public static class RockPlacing
         });
         Scatter(set.scree, world => survey.Scree(survey.Cell(world)));
         Scatter(set.riverbeds, world => TerrainPaint.Within(survey.FromRiver(world), set.riverReach));
-        Scatter(set.forestFloor, world => biomes.Weight(world, BiomeRole.DeepForest) + biomes.Weight(world, BiomeRole.ForestEdge));
-        Scatter(set.openGround, world => biomes.Weight(world, BiomeRole.Field));
+        Scatter(set.forestFloor, world => survey.Forest(survey.Cell(world)));
+        Scatter(set.openGround, world =>
+        {
+            var cell = survey.Cell(world);
+            return (1f - survey.Forest(cell)) * (1f - survey.Marsh(cell));
+        });
 
         if (placements.Count > settings.maxRocks) KeepRandom(placements, settings.maxRocks, rng);
 

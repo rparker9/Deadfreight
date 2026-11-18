@@ -3,8 +3,8 @@ using UnityEngine;
 
 /// <summary>
 /// World heights in metres on a square grid of samples covering the region. It is filled from
-/// the plan's elevation, roads and place pads are pressed into it, and then it becomes the
-/// Unity terrain. Arrays are [row, column]: rows run along z, columns along x (Unity's order).
+/// the plan, the plan's terraces, rivers, roads and pads are drawn into it, and then it becomes
+/// the Unity terrain. Arrays are [row, column]: rows run along z, columns along x (Unity's order).
 /// </summary>
 public sealed class HeightField
 {
@@ -42,18 +42,24 @@ public sealed class HeightField
     // ---------- building from the plan ----------
 
     /// <summary>
-    /// Heights from the plan: its elevation scaled to metres with smooth (bicubic) interpolation,
-    /// bumps and roughness the 50 m grid can't hold, and the escarpment's face redrawn as a cliff.
-    /// River channels are cut later, along each river's line (RiverShaper).
+    /// Heights from the plan, and nothing the plan didn't decide:
+    ///
+    ///   - its elevation in metres, smoothly (bicubic) between cell centres, which it passes
+    ///     through exactly;
+    ///   - the escarpment's face, which is too sharp for bicubic: taken out of the cells first, then
+    ///     put back from the plan's own profile (RegionMap.FaceLift) at every sample;
+    ///   - each biome's fine noise, which averages out over every cell (BiomeNoise).
+    ///
+    /// Terraces, river channels, roads and pads, all planned too, are drawn in after this.
     /// </summary>
-    public static HeightField FromRegion(RegionMap map, RegionFrame frame, RegionSettings region, RegionBuildSettings build, int seed)
+    public static HeightField FromRegion(RegionMap map, RegionFrame frame, RegionBuildSettings build, BiomeNoise noise)
     {
         var field = new HeightField(build.heightmapResolution, frame.SizeX, frame.SizeZ);
 
-        // Noise offsets from the seed, so each region's bumps differ but rebuild the same.
-        var rng = new System.Random(seed);
-        var bumpOffset = new Vector2(rng.Next(0, 10000), rng.Next(0, 10000));
-        var roughOffset = new Vector2(rng.Next(0, 10000), rng.Next(0, 10000));
+        // The plan's heights without the face, which is put back exactly below.
+        var withoutFace = new float[map.Elevation.Length];
+        for (int i = 0; i < withoutFace.Length; i++)
+            withoutFace[i] = map.Metres(i) - map.FaceLift(map.Scarp[i], map.ScarpPass[i]);
 
         for (int row = 0; row < field.Resolution; row++)
         for (int column = 0; column < field.Resolution; column++)
@@ -61,39 +67,19 @@ public sealed class HeightField
             var world = field.SampleToWorld(column, row);
             var cell = frame.WorldToCell(world);
 
-            float h = GridSampling.Bicubic(map.Elevation, map.Width, map.Height, cell) * region.relief;
-            h += Noise(world, build.bumpScale, bumpOffset) * build.bumpHeight;
-            h += Noise(world, build.roughScale, roughOffset) * build.roughHeight;
-
-            if (map.HasEscarpment) h += SharperFace(map, region, build, cell);
+            float h = GridSampling.Bicubic(withoutFace, map.Width, map.Height, cell);
+            if (map.HasEscarpment)
+            {
+                float scarp = GridSampling.Bilinear(map.Scarp, map.Width, map.Height, cell);
+                float pass = GridSampling.Bilinear(map.ScarpPass, map.Width, map.Height, cell);
+                h += map.FaceLift(scarp, pass);
+            }
+            h += noise.At(world, cell);
 
             field.Heights[row, column] = h;
         }
         return field;
     }
-
-    /// <summary>
-    /// The plan draws the escarpment's face across a few 50 m cells: a steep slope, not a cliff.
-    /// This swaps that slope for one cliffWidth wide, keeping the same rise. At passes (and
-    /// cuttings) the plan's long ramp is left as it is, so roads can still climb there.
-    /// </summary>
-    static float SharperFace(RegionMap map, RegionSettings region, RegionBuildSettings build, Vector2 cell)
-    {
-        float scarp = GridSampling.Bilinear(map.Scarp, map.Width, map.Height, cell);
-        float pass = Mathf.Clamp01(GridSampling.Bilinear(map.ScarpPass, map.Width, map.Height, cell));
-
-        float planHalfWidth = Mathf.Lerp(region.escarpmentFace, region.passRamp, pass);
-        if (Mathf.Abs(scarp) >= planHalfWidth) return 0f;       // off the face, both versions agree
-
-        float cliffHalfWidth = Mathf.Lerp(build.cliffWidth * 0.5f / map.CellSize, region.passRamp, pass);
-        float cliff = RegionMath.SmoothStep(-cliffHalfWidth, cliffHalfWidth, scarp);
-        float plan = RegionMath.SmoothStep(-planHalfWidth, planHalfWidth, scarp);
-        return map.ScarpRise * (cliff - plan);
-    }
-
-    /// <summary>Perlin noise from -1 to 1 with features about <paramref name="scale"/> metres across.</summary>
-    static float Noise(Vector2 world, float scale, Vector2 offset) =>
-        (Mathf.PerlinNoise(world.x / scale + offset.x, world.y / scale + offset.y) - 0.5f) * 2f;
 
     // ---------- reading ----------
 
@@ -132,11 +118,10 @@ public sealed class HeightField
     // ---------- shaping ----------
 
     /// <summary>
-    /// Makes the shoreline match the map. The 3D build adds bumps, terraces and a sharper cliff the
-    /// plan never knew about, which can sink land below the lake plane or lift lake bed above it.
-    /// Where the plan says water, ground is held at least shoreDepth below lake level; where it
-    /// says land, at least landAboveWater above. The shore lands where the map's water layer
-    /// crosses one half.
+    /// Makes the shoreline match the map exactly. Between cell centres the smooth heights can dip
+    /// a little below the lake plane on land, or rise above it on lake bed. Where the plan says
+    /// water, ground is held at least shoreDepth below lake level; where it says land, at least
+    /// landAboveWater above. The shore lands where the map's water layer crosses one half.
     /// </summary>
     public void KeepShoreline(RegionMap map, RegionFrame frame, float lakeLevel, RegionBuildSettings build)
     {
@@ -152,12 +137,11 @@ public sealed class HeightField
     }
 
     /// <summary>
-    /// Levels a round pad at the height of its centre: flat out to <paramref name="radius"/>,
+    /// Levels a round pad at the plan's <paramref name="height"/>: flat out to <paramref name="radius"/>,
     /// then blending back to the ground over <paramref name="blend"/>. Road surfaces are left alone.
     /// </summary>
-    public void PressPad(Vector2 centre, float radius, float blend)
+    public void PressPad(Vector2 centre, float height, float radius, float blend)
     {
-        float height = HeightAt(centre);
         SamplesAround(centre, radius + blend, out int c0, out int c1, out int r0, out int r1);
 
         for (int r = r0; r <= r1; r++)

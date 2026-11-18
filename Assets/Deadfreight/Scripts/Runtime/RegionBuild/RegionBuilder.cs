@@ -7,19 +7,22 @@ using Debug = UnityEngine.Debug;
 
 /// <summary>
 /// Builds a drivable greybox of a generated region in the scene: terrain, water, roads and
-/// simple boxes for places. Generates the plan (RegionGenerator), then:
+/// simple boxes for places. Generates the plan (RegionGenerator), which decides everything about
+/// the land, then draws it at full resolution, adding only detail the 50 m cells can't hold:
 ///
-///   1. Heights from the plan's elevation, with bumps and the escarpment's cliff (HeightField),
-///      then terraces on some hillsides (Terraces), then the shoreline made to match the map.
-///   2. Rivers traced downstream (RiverNetwork), then one at a time smoothed, given a downhill
-///      water surface, and cut into the ground (RiverShaper).
-///   3. Roads split so none overlap (RoadNetwork), then one at a time smoothed, given a
-///      grade-limited height, and pressed into the ground (RoadShaper).
-///   4. Pads levelled under places.
+///   1. Heights from the plan, with its escarpment face exact and each biome's fine noise
+///      (HeightField, BiomeNoise), then the plan's terraces (Terraces), then the shoreline
+///      made to match the map.
+///   2. Rivers traced downstream (RiverNetwork), then one at a time smoothed and cut to the
+///      plan's width, depth and water level (RiverShaper).
+///   3. Roads split so none overlap (RoadNetwork), then one at a time smoothed and pressed in at
+///      the plan's heights (RoadShaper).
+///   4. Pads levelled under places at the plan's heights.
 ///   5. Scene objects: terrain (painted by TerrainPaint), then what lies and grows on it: the
-///      ground surveyed (GroundSurvey) and split into biomes (BiomeMap), rocks laid by landform
-///      (RockPlacing), foliage (FoliagePaint) and trees (TreePlanting) by biome, keeping clear
-///      of the rocks. Then lake water, river water, a mesh per road, boxes for places.
+///      ground surveyed (GroundSurvey), the plan's biomes blended with the edge bands (BiomeMap),
+///      rocks laid by landform (RockPlacing), foliage (FoliagePaint) and trees (TreePlanting) by
+///      biome, keeping clear of the rocks. Then lake water, river water, a mesh per road, boxes
+///      for places.
 ///
 /// Build from the inspector buttons, or on Start. Keep this object at the world origin.
 /// Edit-mode builds aren't saved with the scene; they're rebuilt from the seed.
@@ -82,11 +85,13 @@ public sealed class RegionBuilder : MonoBehaviour
             return;
         }
 
-        // 1. Heights, then terraces, then the shoreline (last, so nothing after it moves the shore).
+        // 1. Heights (with each biome's fine noise), then terraces, then the shoreline (last, so
+        //    nothing after it moves the shore). Everything here is drawn from the plan.
         var frame = new RegionFrame(Map);
-        var field = HeightField.FromRegion(Map, frame, regionSettings, buildSettings, seed);
-        Terraces.Apply(field, Map, frame, buildSettings, seed);
-        float lakeLevel = regionSettings.seaLevel * regionSettings.relief;
+        var biomeBlend = new BiomeBlend(Map, frame, buildSettings, seed);
+        var field = HeightField.FromRegion(Map, frame, buildSettings, new BiomeNoise(Map, frame, biomeBlend, seed));
+        Terraces.Apply(field, Map, frame);
+        float lakeLevel = Map.LakeLevel;
         field.KeepShoreline(Map, frame, lakeLevel, buildSettings);
 
         // 2. Rivers, each cut in before the next is shaped, so tributaries meet them at their level.
@@ -98,8 +103,8 @@ public sealed class RegionBuilder : MonoBehaviour
         }
         Rivers = rivers.Built;
 
-        // 3. Roads, in priority order, each pressed in before the next is shaped. Never below the lakes.
-        var shaper = new RoadShaper(field, frame, buildSettings, lakeLevel + buildSettings.landAboveWater);
+        // 3. Roads, in priority order, each pressed in before the next is shaped, at the plan's heights.
+        var shaper = new RoadShaper(field, frame, Map, buildSettings, regionSettings.maxGrade, lakeLevel + buildSettings.landAboveWater);
         foreach (var segment in RoadNetwork.Split(Map))
         {
             var road = shaper.Shape(segment);
@@ -107,14 +112,14 @@ public sealed class RegionBuilder : MonoBehaviour
         }
         Roads = shaper.Built;
 
-        // 4. Pads, after the roads so each takes the height of the road it sits on.
+        // 4. Pads at the plan's heights (the road's, where the place is on one).
         foreach (var place in Map.Places)
-            field.PressPad(frame.CellToWorld(place.Cell), buildSettings.padRadius, buildSettings.padBlend);
+            field.PressPad(frame.CellToWorld(place.Cell), place.PadHeight, Map.PadRadius, Map.PadBlend);
 
         // 5. Scene.
         root = new GameObject(RootName);
         root.transform.SetParent(transform, false);
-        CreateTerrain(frame, field, lakeLevel);
+        CreateTerrain(frame, field, lakeLevel, biomeBlend);
         CreateWater(frame, lakeLevel);
         foreach (var river in rivers.Built) CreateRiver(river);
         foreach (var road in shaper.Built) CreateRoad(road);
@@ -148,7 +153,7 @@ public sealed class RegionBuilder : MonoBehaviour
 
     // ---------- scene objects ----------
 
-    void CreateTerrain(RegionFrame frame, HeightField field, float lakeLevel)
+    void CreateTerrain(RegionFrame frame, HeightField field, float lakeLevel, BiomeBlend biomeBlend)
     {
         var heights = field.Normalized(out float bottom, out float span);
 
@@ -162,10 +167,10 @@ public sealed class RegionBuilder : MonoBehaviour
         var paint = TerrainPaint.Weights(Map, frame, field, buildSettings, seed);
         data.SetAlphamaps(0, 0, paint);
 
-        // Rocks first, by landform; then foliage and trees, by biome, around them.
+        // Rocks first, by landform; then foliage and trees, by the plan's biomes, around them.
         var survey = new GroundSurvey(Map, frame, field, buildSettings, lakeLevel);
-        Biomes = BiomeMap.Build(survey, seed);
-        var rocks = RockPlacing.Place(root.transform, survey, Biomes, seed);
+        Biomes = BiomeMap.Build(survey, biomeBlend);
+        var rocks = RockPlacing.Place(root.transform, survey, seed);
         RockCount = rocks.Count;
         FoliagePaint.Apply(data, paint, survey, Biomes, rocks, seed);
         TreeCount = TreePlanting.Plant(data, survey, Biomes, rocks, seed);

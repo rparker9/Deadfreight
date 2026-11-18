@@ -9,13 +9,18 @@ using UnityEngine;
 ///   1. Land    (RegionGenerator.Land.cs)    rolling farmland and ridged hill country, lakes, rivers
 ///                                           draining into river valleys, flood plains, marsh, forest,
 ///                                           fog hollows; an escarpment with passes
-///                                           (RegionGenerator.Escarpment.cs).
+///                                           (RegionGenerator.Escarpment.cs); terraced hillsides
+///                                           (RegionGenerator.Terraces.cs); each river's channel
+///                                           (RegionGenerator.Channels.cs); a biome per cell
+///                                           (RegionGenerator.Biomes.cs).
 ///   2. Places  (RegionGenerator.Places.cs)  the entry on a random edge, the heist site across
 ///                                           the map, stops scattered between.
 ///   3. Roads   (RegionGenerator.Roads.cs)   the main road from entry to site, whose first stretch
 ///                                           is the shared trunk ending at the fork; alternates from
 ///                                           the fork, each bowing out through a via point and kept
-///                                           inside a time window; lanes from the stops to the road.
+///                                           inside a time window; lanes from the stops to the road;
+///                                           then each road's height and each place's pad
+///                                           (RegionGenerator.RoadHeights.cs).
 ///   4. Travel  (RegionGenerator.Travel.cs)  speed per cell; each route's miles, minutes, conditions.
 ///
 /// Same seed + settings = same region. If the land leaves no room for an entry, a site or a
@@ -47,7 +52,13 @@ public sealed partial class RegionGenerator
         this.settings = settings;
         this.seed = seed;
         rng = new System.Random(seed);
-        map = new RegionMap(settings.width, settings.height, settings.cellSize);
+        map = new RegionMap(settings.width, settings.height, settings.cellSize)
+        {
+            Relief = settings.relief,
+            LakeLevel = settings.seaLevel * settings.relief,
+            PadRadius = settings.padRadius,
+            PadBlend = settings.padBlend,
+        };
         width = map.Width;
         height = map.Height;
         cellCount = width * height;
@@ -65,6 +76,8 @@ public sealed partial class RegionGenerator
         BuildAlternates();
         BuildLanes();
         CutThroughCliffs();
+        PlanRoadHeights();      // RegionGenerator.RoadHeights.cs
+        PlanPads();
 
         MeasureRoutes();
     }

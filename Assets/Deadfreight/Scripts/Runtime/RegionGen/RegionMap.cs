@@ -16,6 +16,7 @@ public sealed class Place
     public PlaceKind Kind;
     public Vector2Int Cell;
     public bool IsVia;          // an alternate route was built to pass through here
+    public float PadHeight;     // metres: the flat ground the place stands on (planned with the roads)
 }
 
 /// <summary>
@@ -66,6 +67,17 @@ public sealed class Route
     public readonly Dictionary<RoadCondition, float> Share = new();   // 0-1 of the leg's cells
 }
 
+/// <summary>The shape of a region's terrace shelves, decided by the plan (RegionSettings → terraces).</summary>
+public sealed class TerraceSpec
+{
+    public float Step;          // metres of height per shelf
+    public float Riser;         // 0-1: share of each step taken by the rise to the next shelf
+    public float Tilt;          // 0-1: share of the hill's own slope a shelf keeps
+    public float Wobble;        // metres the shelf edges wander off the contour lines...
+    public float WobbleScale;   // ...over this distance (metres)
+    public Vector2 WobbleOffset;    // where in the wobble noise this region sits
+}
+
 /// <summary>
 /// A generated region on a grid (x right, y down; index = y * Width + x). Cells hold the
 /// land layers; the entry, places and roads sit on top. Plain data for previews, the
@@ -78,6 +90,8 @@ public sealed class RegionMap
 {
     public readonly int Width, Height;
     public readonly float CellSize;
+    public float Relief;                 // metres from 0 to 1 on the Elevation scale
+    public float LakeLevel;              // metres: the lakes' water surface
 
     public readonly float[] Elevation;   // 0-1
     public readonly float[] Slope;       // rise over run
@@ -91,7 +105,36 @@ public sealed class RegionMap
     public readonly float[] ScarpPass;   // 0 = sheer face, 1 = the middle of a pass (a long ramp)
     public readonly bool[] Cliff;        // face cells roads can't climb: everything but the passes
     public float ScarpRise;              // metres the upland stands above the lowland
+    public float FaceHalfWidth;          // cells: half the width of the face itself, as a cliff (not the routing band)
+    public float PassRamp;               // cells: half the width of the climb at a pass
     public int Cuttings;                 // road cells cut through the face because no pass could be reached
+
+    // Terraces: hillsides stepped into shelves. The plan decides where and how; the 3D build draws
+    // the shelves from exactly this. Stepping averages out over each full step, so the 3D ground
+    // keeps the plan's cell heights to within a fraction of a step.
+    public readonly float[] Terrace;     // 0-1: how strongly each cell is terraced
+    public TerraceSpec Terraces;         // the shelves' shape; null if this region has none
+
+    // Rivers: the channel the 3D build cuts, decided here. NaN off rivers.
+    public readonly float[] RiverWidth;  // metres
+    public readonly float[] RiverDepth;  // metres below the water
+    public readonly float[] RiverLevel;  // metres: the water surface, never rising downstream
+
+    // Biomes: one per cell, from RegionSettings' rules (first match wins). The 3D build blends
+    // them at cell borders and uses each one's trees, foliage and fine ground noise.
+    public readonly int[] BiomeIndex;    // per cell: index into Biomes, or -1 where nothing grows (lakes, rivers)
+    public readonly List<Biome> Biomes = new();     // each distinct biome used, in rule order
+
+    // Roads: the height each road cell is built at, decided here (grade-limited, smoothed).
+    // NaN off roads. Cut is ground minus road: positive = a cutting, negative = an embankment.
+    public readonly float[] RoadHeight;  // metres
+    public readonly float[] RoadCut;     // metres
+
+    // Pads: flat ground around each place, at Place.PadHeight.
+    public float PadRadius;              // metres: flat out to here...
+    public float PadBlend;               // ...then back to the ground over this
+
+    public float[] RoadCost;             // cost of building road on each cell, from the land alone (what the pathfinder used)
 
     public RegionEntry Entry;
     public Place Site;
@@ -127,7 +170,37 @@ public sealed class RegionMap
         Scarp = new float[n];
         ScarpPass = new float[n];
         Cliff = new bool[n];
+        Terrace = new float[n];
+        RiverWidth = Filled(n, float.NaN);
+        RiverDepth = Filled(n, float.NaN);
+        RiverLevel = Filled(n, float.NaN);
+        BiomeIndex = Filled(n, -1);
+        RoadHeight = Filled(n, float.NaN);
+        RoadCut = Filled(n, float.NaN);
     }
+
+    static T[] Filled<T>(int n, T value)
+    {
+        var array = new T[n];
+        System.Array.Fill(array, value);
+        return array;
+    }
+
+    /// <summary>
+    /// How far up the escarpment's rise the ground is at a point: 0 on the lowland, 1 on the
+    /// upland, in metres times ScarpRise. A cliff FaceHalfWidth either side of the face, or a
+    /// ramp PassRamp either side at a pass. The plan's heights are built with this, and the 3D
+    /// build evaluates the same function between cell centres, so they agree.
+    /// </summary>
+    public float FaceLift(float scarp, float pass)
+    {
+        if (!HasEscarpment) return 0f;
+        float halfWidth = Mathf.Lerp(FaceHalfWidth, PassRamp, Mathf.Clamp01(pass));
+        return ScarpRise * RegionMath.SmoothStep(-halfWidth, halfWidth, scarp);
+    }
+
+    /// <summary>Plan height of a cell in metres.</summary>
+    public float Metres(int i) => Elevation[i] * Relief;
 
     public int Index(Vector2Int c) => c.y * Width + c.x;
     public Vector2Int CellAt(int index) => new(index % Width, index / Width);

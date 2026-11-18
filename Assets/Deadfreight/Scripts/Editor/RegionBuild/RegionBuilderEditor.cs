@@ -13,20 +13,6 @@ public sealed class RegionBuilderEditor : Editor
     const string DefaultBuildSettingsPath = "Assets/Deadfreight/Data/RegionGen/DefaultRegionBuildSettings.asset";
     const int PreviewSize = 256;
 
-    // One colour per BiomeRole, in its order; dark grey where nothing grows (roads, water).
-    static readonly Color32[] RoleColours =
-    {
-        new(24, 70, 32, 255),       // DeepForest
-        new(70, 120, 50, 255),      // ForestEdge
-        new(175, 185, 95, 255),     // Field
-        new(70, 120, 120, 255),     // Wetland
-        new(80, 150, 200, 255),     // Riverbank
-        new(120, 90, 140, 255),     // Hollow
-        new(150, 140, 125, 255),    // Upland
-        new(210, 170, 110, 255),    // Verge
-    };
-    static readonly Color32 Nothing = new(40, 40, 40, 255);
-
     Texture2D preview;
     BiomeMap previewOf;     // the map the preview was drawn from, to redraw after a new build
 
@@ -79,31 +65,33 @@ public sealed class RegionBuilderEditor : Editor
 
     // ---------- biome preview ----------
 
-    /// <summary>The biome map as a picture, each point coloured by its strongest role, with a key. North is up.</summary>
+    static readonly Color32 Nothing = new(40, 40, 40, 255);     // roads, water: nothing grows
+
+    /// <summary>What grows where, as a picture: each point in its strongest biome's preview colour, with a key. North is up.</summary>
     void DrawBiomePreview(BiomeMap biomes)
     {
         if (previewOf != biomes || preview == null) RedrawPreview(biomes);
 
         EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Biomes (strongest at each point)", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField("Biomes and edge bands (strongest at each point)", EditorStyles.boldLabel);
         var rect = GUILayoutUtility.GetAspectRect(1f, GUILayout.MaxWidth(PreviewSize * 1.5f));
         GUI.DrawTexture(rect, preview, ScaleMode.ScaleToFit);
 
-        for (int role = 0; role < RoleColours.Length; role += 2)
+        for (int slot = 0; slot < biomes.Slots.Count; slot += 2)
         {
             using (new EditorGUILayout.HorizontalScope())
             {
-                Key(role);
-                if (role + 1 < RoleColours.Length) Key(role + 1);
+                Key(biomes.Slots[slot]);
+                if (slot + 1 < biomes.Slots.Count) Key(biomes.Slots[slot + 1]);
             }
         }
     }
 
-    static void Key(int role)
+    static void Key(Biome biome)
     {
         var swatch = GUILayoutUtility.GetRect(12f, 12f, GUILayout.Width(12f));
-        EditorGUI.DrawRect(swatch, RoleColours[role]);
-        EditorGUILayout.LabelField(((BiomeRole)role).ToString(), EditorStyles.miniLabel, GUILayout.Width(110f));
+        EditorGUI.DrawRect(swatch, biome.previewColour);
+        EditorGUILayout.LabelField(biome.name, EditorStyles.miniLabel, GUILayout.Width(110f));
     }
 
     void RedrawPreview(BiomeMap biomes)
@@ -117,8 +105,9 @@ public sealed class RegionBuilderEditor : Editor
         {
             int column = x * (biomes.Resolution - 1) / (PreviewSize - 1);
             int row = y * (biomes.Resolution - 1) / (PreviewSize - 1);
-            int role = biomes.Strongest(column, row);
-            pixels[y * PreviewSize + x] = role < 0 ? Nothing : RoleColours[role];    // texture row 0 is the bottom: world z = 0, south
+            int slot = biomes.Strongest(column, row);
+            // Texture row 0 is the bottom: world z = 0, south.
+            pixels[y * PreviewSize + x] = slot < 0 ? Nothing : (Color32)biomes.Slots[slot].previewColour;
         }
         preview.SetPixels32(pixels);
         preview.Apply();

@@ -12,6 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 34de2749e789eb24380dd0daa1f65531, type: 3}
   m_Name: Wetland
   m_EditorClassIdentifier: Assembly-CSharp::Biome
+  previewColour: {r: 0.27, g: 0.47, b: 0.47, a: 1}
+  bumpScale: 15
+  bumpHeight: 0.1
+  roughScale: 4
+  roughHeight: 0.05
   trees:
   - prefab: {fileID: 919132149155446097, guid: d94730f375685a8479b121d8855c081b, type: 3}
     weight: 1
@@ -37,16 +42,16 @@ MonoBehaviour:
   - prototype: {fileID: 919132149155446097, guid: 38dbeadb5b1f0d94d9de1d4e93c56740, type: 3}
     amount: 0.6
     density: 0.8
-    scale: {x: 0.9, y: 2.75}
+    scale: {x: 0.9, y: 1.4}
     alignToGround: 0.4
   - prototype: {fileID: 919132149155446097, guid: 2d040823ff5630a47a21e58c26119e6c, type: 3}
     amount: 0.5
     density: 0.8
-    scale: {x: 0.9, y: 2.75}
+    scale: {x: 0.9, y: 1.4}
     alignToGround: 0.4
   - prototype: {fileID: 919132149155446097, guid: d3d72030c7e0a514dadd495feb0cfc06, type: 3}
     amount: 0.2
     density: 0.6
-    scale: {x: 0.8, y: 2.6}
+    scale: {x: 0.8, y: 1.3}
     alignToGround: 0.7
   patchiness: 0.4

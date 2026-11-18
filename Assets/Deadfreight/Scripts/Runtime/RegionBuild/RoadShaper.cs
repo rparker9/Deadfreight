@@ -19,8 +19,9 @@ public sealed class RoadPath
 ///   1. Simplify: drop cell corners that sit close to a straight line (the plan zigzags in 50 m steps).
 ///   2. Smooth: a spline through what's left. Ends that join an earlier road snap onto it.
 ///   3. Sample: points every sampleSpacing metres along the spline.
-///   4. Profile: heights from the ground, averaged so the road cuts through bumps and fills dips,
-///      then held to maxGrade. Ends that join an earlier road take its height.
+///   4. Profile: the plan's road heights (RegionGenerator.RoadHeights), read along the line
+///      between its cells, lightly smoothed so the 50 m steps don't show, and held to the plan's
+///      maxGrade. Ends that join an earlier road take its height.
 ///   5. Press: flatten the ground to the road across its width, blending back over the shoulder.
 ///
 /// Segments must be shaped and pressed in order, one at a time: each reads the ground the
@@ -32,6 +33,8 @@ public sealed class RoadShaper
     readonly RegionFrame frame;
     readonly RegionBuildSettings settings;
     readonly float lowestSurface;       // no road surface below this (just above lake level)
+    readonly RegionMap map;
+    readonly float maxGrade;            // the plan's
     readonly List<RoadPath> built = new();
 
     // Scratch for pressing one road: for each sample it touches, the nearest centre point's distance and height.
@@ -39,11 +42,15 @@ public sealed class RoadShaper
     readonly float[,] nearestHeight;
     readonly List<Vector2Int> touched = new();
 
-    public RoadShaper(HeightField field, RegionFrame frame, RegionBuildSettings settings, float lowestSurface)
+    const float SmoothingLength = 20f;  // metres: just enough to round off the plan's cell-to-cell corners
+
+    public RoadShaper(HeightField field, RegionFrame frame, RegionMap map, RegionBuildSettings settings, float maxGrade, float lowestSurface)
     {
         this.field = field;
         this.frame = frame;
+        this.map = map;
         this.settings = settings;
+        this.maxGrade = maxGrade;
         this.lowestSurface = lowestSurface;
         nearestDistance = new float[field.Resolution, field.Resolution];
         nearestHeight = new float[field.Resolution, field.Resolution];
@@ -79,7 +86,7 @@ public sealed class RoadShaper
 
         // 3. Sample, 4. profile.
         var line = PathSmoothing.SampleEvenly(spline, settings.sampleSpacing);
-        var heights = Profile(line, startHeight, endHeight);
+        var heights = Profile(segment, line.Count, startHeight, endHeight);
 
         var road = new RoadPath
         {
@@ -95,35 +102,50 @@ public sealed class RoadShaper
     }
 
     /// <summary>
-    /// The road's height along its length: ground height, averaged over profileSmoothing metres,
-    /// then held to maxGrade (a forward and a backward pass), and never below lowestSurface so
-    /// smoothing can't sink a lakeside road. Pinned ends keep the height of the road they join.
+    /// The road's height along its length: the plan's height for each cell, read between cells,
+    /// averaged over SmoothingLength, then held to maxGrade (a forward and a backward pass), and
+    /// never below lowestSurface. Pinned ends keep the height of the road they join.
     /// </summary>
-    float[] Profile(List<Vector2> line, float? startHeight, float? endHeight)
+    float[] Profile(RoadSegment segment, int count, float? startHeight, float? endHeight)
     {
-        int n = line.Count;
-        var heights = new float[n];
-        for (int i = 0; i < n; i++) heights[i] = field.HeightAt(line[i]);
+        var heights = new float[count];
+        for (int i = 0; i < count; i++) heights[i] = PlanHeightAlong(segment, i / (float)Mathf.Max(1, count - 1));
         Pin(heights, startHeight, endHeight);
 
-        int halfWindow = Mathf.Max(1, Mathf.RoundToInt(settings.profileSmoothing / settings.sampleSpacing * 0.5f));
-        for (int pass = 0; pass < 3; pass++)
+        int halfWindow = Mathf.Max(1, Mathf.RoundToInt(SmoothingLength / settings.sampleSpacing * 0.5f));
+        for (int pass = 0; pass < 2; pass++)
         {
             heights = PathSmoothing.MovingAverage(heights, halfWindow);
             Pin(heights, startHeight, endHeight);
         }
 
-        float maxRise = settings.maxGrade * settings.sampleSpacing;
+        float maxRise = maxGrade * settings.sampleSpacing;
         for (int pass = 0; pass < 2; pass++)
         {
-            for (int i = 1; i < n; i++)
+            for (int i = 1; i < count; i++)
                 heights[i] = Mathf.Clamp(heights[i], heights[i - 1] - maxRise, heights[i - 1] + maxRise);
-            for (int i = n - 2; i >= 0; i--)
+            for (int i = count - 2; i >= 0; i--)
                 heights[i] = Mathf.Clamp(heights[i], heights[i + 1] - maxRise, heights[i + 1] + maxRise);
             Pin(heights, startHeight, endHeight);
         }
-        for (int i = 0; i < n; i++) heights[i] = Mathf.Max(heights[i], lowestSurface);
+        for (int i = 0; i < count; i++) heights[i] = Mathf.Max(heights[i], lowestSurface);
         return heights;
+    }
+
+    /// <summary>The plan's road height part of the way (0-1) along a segment, between the cells either side.</summary>
+    float PlanHeightAlong(RoadSegment segment, float along)
+    {
+        var cells = segment.Cells;
+        float at = along * (cells.Count - 1);
+        int before = Mathf.FloorToInt(at), after = Mathf.Min(before + 1, cells.Count - 1);
+        return Mathf.Lerp(PlanHeight(cells[before]), PlanHeight(cells[after]), at - before);
+    }
+
+    /// <summary>A road cell's planned height (the ground's, should a cell somehow have none).</summary>
+    float PlanHeight(Vector2Int cell)
+    {
+        int i = map.Index(cell);
+        return float.IsNaN(map.RoadHeight[i]) ? map.Metres(i) : map.RoadHeight[i];
     }
 
     static void Pin(float[] heights, float? start, float? end)
