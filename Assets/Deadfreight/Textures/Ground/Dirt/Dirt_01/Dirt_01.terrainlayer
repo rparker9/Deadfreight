@@ -9,7 +9,7 @@ TerrainLayer:
   m_Name: Dirt_01
   m_DiffuseTexture: {fileID: 2800000, guid: cc6ac71360f03e8428fece3c9725c14a, type: 3}
   m_NormalMapTexture: {fileID: 2800000, guid: 4320ebbc2a55ff543a6aae8e0cd061d6, type: 3}
-  m_MaskMapTexture: {fileID: 2800000, guid: c225f91c820459a4e9f20fde9794514a, type: 3}
+  m_MaskMapTexture: {fileID: 0}
   m_TileSize: {x: 3, y: 3}
   m_TileOffset: {x: 0, y: 0}
   m_Specular: {r: 0, g: 0, b: 0, a: 0}

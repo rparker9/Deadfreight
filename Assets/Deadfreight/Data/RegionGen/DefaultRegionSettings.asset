@@ -19,13 +19,39 @@ MonoBehaviour:
   flatness: 1.4
   relief: 120
   seaLevel: 0.18
-  rivers: 8
-  riverSourceHeight: 0.5
   marshBand: 0.12
   forestScale: 40
   forestThreshold: 0.05
-  hollowDepth: 0.05
   steepSlope: 0.08
+  hillCountry: 1
+  hillZoneScale: 110
+  hillZoneStart: 0.4
+  hillZoneFull: 0.65
+  ridgeScale: 30
+  ridgeHeight: 0.9
+  escarpment: 1
+  escarpmentHeight: 35
+  escarpmentOffset: 0.15
+  escarpmentWobble: 8
+  escarpmentFace: 1.5
+  passCountMin: 3
+  passCountMax: 4
+  passWidth: 8
+  passRamp: 12
+  riverArea: 250
+  riverValleys: 1
+  valleyWidth: 4
+  valleyWidthGrowth: 0.08
+  valleyMaxWidth: 10
+  valleyDepth: 12
+  valleyDepthGrowth: 0.3
+  valleyMaxDepth: 30
+  floodPlains: 1
+  floodPlainReach: 10
+  floodPlainBand: 0.12
+  floodPlainSquash: 0.25
+  hollowDepth: 0.05
+  hollowBowl: 4
   entrySpan: 0.6
   entryStub: 4
   entryClear: 8
@@ -39,6 +65,7 @@ MonoBehaviour:
   forestCost: 2
   marshCost: 3
   fordCost: 12
+  cliffCost: 200
   heuristicWeight: 0.35
   edgeMargin: 6
   edgeCost: 2

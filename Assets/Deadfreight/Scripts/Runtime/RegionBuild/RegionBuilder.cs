@@ -16,8 +16,8 @@ using Debug = UnityEngine.Debug;
 ///   3. Roads split so none overlap (RoadNetwork), then one at a time smoothed, given a
 ///      grade-limited height, and pressed into the ground (RoadShaper).
 ///   4. Pads levelled under places.
-///   5. Scene objects: terrain (painted by TerrainPaint, ground cover by GroundCoverPaint), lake
-///      water, river water, a mesh per road, boxes for places.
+///   5. Scene objects: terrain (painted by TerrainPaint, ground cover by GroundCoverPaint, trees by
+///      TreePlanting), lake water, river water, a mesh per road, boxes for places.
 ///
 /// Build from the inspector buttons, or on Start. Keep this object at the world origin.
 /// Edit-mode builds aren't saved with the scene; they're rebuilt from the seed.
@@ -42,6 +42,7 @@ public sealed class RegionBuilder : MonoBehaviour
     public RegionMap Map { get; private set; }
     public IReadOnlyList<RoadPath> Roads { get; private set; }
     public IReadOnlyList<RiverChannel> Rivers { get; private set; }
+    public int TreeCount { get; private set; }
     public Pose EntryPose { get; private set; }
 
     public int Seed
@@ -117,7 +118,7 @@ public sealed class RegionBuilder : MonoBehaviour
 
         if (!Application.isPlaying) HideFromScene();
         Debug.Log($"Built region {seed} in {timer.ElapsedMilliseconds} ms: " +
-                  $"{shaper.Built.Count} road segments, {rivers.Built.Count} rivers, {Map.Places.Count} places.", this);
+                  $"{shaper.Built.Count} road segments, {rivers.Built.Count} rivers, {TreeCount} trees, {Map.Places.Count} places.", this);
     }
 
     public void Clear()
@@ -130,6 +131,7 @@ public sealed class RegionBuilder : MonoBehaviour
         Map = null;
         Roads = null;
         Rivers = null;
+        TreeCount = 0;
         plainWater = null;
 
         // A build left over from before a script reload: the reference is gone, the object isn't.
@@ -153,9 +155,10 @@ public sealed class RegionBuilder : MonoBehaviour
         var paint = TerrainPaint.Weights(Map, frame, field, buildSettings, seed);
         data.SetAlphamaps(0, 0, paint);
 
-        // Ground cover grows where the paint says its ground is.
+        // Ground cover grows where the paint says its ground is; trees where the plan has forest.
         float waterHeight = regionSettings.seaLevel * regionSettings.relief;
         GroundCoverPaint.Apply(data, paint, field, waterHeight, buildSettings, seed);
+        TreeCount = TreePlanting.Plant(data, Map, frame, field, buildSettings, waterHeight, seed);
 
         var go = Terrain.CreateTerrainGameObject(data);
         go.name = "Terrain";
@@ -166,6 +169,7 @@ public sealed class RegionBuilder : MonoBehaviour
         var terrain = go.GetComponent<Terrain>();
         if (buildSettings.terrainMaterial != null) terrain.materialTemplate = buildSettings.terrainMaterial;
         terrain.detailObjectDistance = buildSettings.detailDistance;
+        terrain.treeDistance = buildSettings.treeDistance;
     }
 
     /// <summary>

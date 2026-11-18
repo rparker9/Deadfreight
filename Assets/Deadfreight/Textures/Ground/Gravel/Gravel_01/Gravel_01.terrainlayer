@@ -9,7 +9,7 @@ TerrainLayer:
   m_Name: Gravel_01
   m_DiffuseTexture: {fileID: 2800000, guid: 64c78a66377711c4c863fc110673a07d, type: 3}
   m_NormalMapTexture: {fileID: 2800000, guid: adada27462f0eb7449ce4664b94de87a, type: 3}
-  m_MaskMapTexture: {fileID: 2800000, guid: dabca7376db8bf24fb5c0b6f358c0d16, type: 3}
+  m_MaskMapTexture: {fileID: 0}
   m_TileSize: {x: 2, y: 2}
   m_TileOffset: {x: 0, y: 0}
   m_Specular: {r: 0, g: 0, b: 0, a: 0}

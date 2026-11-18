@@ -17,7 +17,7 @@ MonoBehaviour:
   bumpScale: 120
   bumpHeight: 2.5
   roughScale: 25
-  roughHeight: 0.4
+  roughHeight: 1
   shoreDepth: 0.4
   landAboveWater: 0.2
   riverMinWidth: 3
@@ -80,18 +80,28 @@ MonoBehaviour:
   lane:
     rollingResistance: 2
     grip: 0.9
-  mainRoadMaterial: {fileID: 0}
+  mainRoadMaterial: {fileID: 2100000, guid: 98bd67e464cf5684ea1520502ed44059, type: 2}
   backRoadMaterial: {fileID: 0}
   laneMaterial: {fileID: 0}
   waterMaterial: {fileID: 0}
   riverMaterial: {fileID: 0}
   buildingMaterial: {fileID: 0}
   siteMaterial: {fileID: 0}
-  terrainMaterial: {fileID: 0}
+  terrainMaterial: {fileID: 2100000, guid: 6aa744a8b65ac5f4ea3a642a565fa79e, type: 2}
   grassLayer: {fileID: 8574412962073106934, guid: 9cfbfd434aaa5394b9eb54228e903de9, type: 2}
   dirtLayer: {fileID: 8574412962073106934, guid: d1cb3b9c34b038f4b9c397829fce2a12, type: 2}
   stonyLayer: {fileID: 8574412962073106934, guid: 6cd76f06e7472e9429be263b17207733, type: 2}
   rockLayer: {fileID: 8574412962073106934, guid: 7020c3ecf65a8dd409caa90bcf41fde4, type: 2}
+  trees: []
+  treeSpacing: 12
+  openTreeSpacing: 24
+  openTreeChance: 0.35
+  treeMaxSlope: 0.6
+  treeRoadClearance: 3
+  treeRiverClearance: 2
+  wetTreeReach: 15
+  maxTrees: 1000000
+  treeDistance: 250
   detailResolution: 2048
   detailDistance: 80
   coverPatchScale: 40

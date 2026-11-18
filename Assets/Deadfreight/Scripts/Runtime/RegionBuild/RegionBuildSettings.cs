@@ -138,6 +138,23 @@ public sealed class RegionBuildSettings : ScriptableObject
     public TerrainLayer stonyLayer;
     [Tooltip("Steep faces and cliffs. Rock.")] public TerrainLayer rockLayer;
 
+    [Header("Trees")]
+    [Tooltip("The kinds of tree this region plants, and where. Leave empty for no trees.")]
+    public TreeKind[] trees = new TreeKind[0];
+    [Unit("m"), Tooltip("Distance between trees in the thickest forest. Smaller = denser (and many more trees).")]
+    public float treeSpacing = 8f;
+    [Unit("m"), Tooltip("Lone trees in the open are considered this far apart...")] public float openTreeSpacing = 70f;
+    [Range(0f, 1f), Tooltip("...and each spot gets one with this chance.")] public float openTreeChance = 0.35f;
+    [Tooltip("No trees on ground steeper than this (rise over run).")] public float treeMaxSlope = 0.6f;
+    [Unit("m"), Tooltip("Trees keep this far from a road's surface (and from the pads around places).")]
+    public float treeRoadClearance = 3f;
+    [Unit("m"), Tooltip("Trees keep this far from river water.")] public float treeRiverClearance = 2f;
+    [Unit("m"), Tooltip("Within this distance of a river, Wet kinds grow instead (if the list has any).")]
+    public float wetTreeReach = 15f;
+    [Min(0), Tooltip("Hard cap. If more trees qualify, a random selection is kept, thinning the whole region evenly.")]
+    public int maxTrees = 100000;
+    [Unit("m"), Tooltip("Trees are drawn out to this distance from the camera.")] public float treeDistance = 500f;
+
     [Header("Ground cover (terrain details)")]
     [Tooltip("Detail cells per side (power of two). 2048 is about 4 m per cell on an 8 km region.")]
     public int detailResolution = 2048;
@@ -170,6 +187,8 @@ public sealed class RegionBuildSettings : ScriptableObject
         detailDistance = Mathf.Clamp(detailDistance, 0f, 250f);
         sampleSpacing = Mathf.Max(0.25f, sampleSpacing);
         riverSpacing = Mathf.Max(0.25f, riverSpacing);
+        treeSpacing = Mathf.Max(2f, treeSpacing);
+        openTreeSpacing = Mathf.Max(treeSpacing, openTreeSpacing);
         riverBankWidth = Mathf.Max(0.1f, riverBankWidth);
         profileSmoothing = Mathf.Max(0f, profileSmoothing);
         shoulder = Mathf.Max(0.1f, shoulder);

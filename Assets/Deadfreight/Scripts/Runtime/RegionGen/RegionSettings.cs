@@ -12,6 +12,8 @@ public sealed class RegionSettings : ScriptableObject
 {
     [Header("Size")]
     [Unit("m"), Tooltip("Size of one grid cell.")] public float cellSize = 50f;
+
+    [Tooltip("Width and height of the region in cells. Bigger = more land, more road, more places.")]
     [Min(32)] public int width = 160;
     [Min(32)] public int height = 130;
 
