@@ -90,10 +90,10 @@ public static class TerrainPaint
     // ---------- bands ----------
 
     /// <summary>1 close in, fading to 0 by <paramref name="width"/>.</summary>
-    static float Within(float distance, float width) => 1f - RegionMath.SmoothStep(width * 0.5f, width, distance);
+    internal static float Within(float distance, float width) => 1f - RegionMath.SmoothStep(width * 0.5f, width, distance);
 
     /// <summary>Loose rock at the foot of the escarpment: on the lowland side, fading out with distance.</summary>
-    static float Scree(RegionMap map, Vector2 cell, float[] cellsToCliff, RegionBuildSettings settings)
+    internal static float Scree(RegionMap map, Vector2 cell, float[] cellsToCliff, RegionBuildSettings settings)
     {
         if (!map.HasEscarpment) return 0f;
         float scarp = GridSampling.Bilinear(map.Scarp, map.Width, map.Height, cell);
@@ -103,7 +103,7 @@ public static class TerrainPaint
     }
 
     /// <summary>Plan height minus its blurred surroundings: positive on ridges and crests, negative in hollows.</summary>
-    static float[] RidgesAndHollows(RegionMap map)
+    internal static float[] RidgesAndHollows(RegionMap map)
     {
         var surroundings = GridOps.Blur(map.Elevation, map.Width, map.Height, RidgeBlur);
         var shape = new float[map.Elevation.Length];
@@ -135,14 +135,14 @@ public static class TerrainPaint
     /// Moves where a soft amount's border falls: noise raises or lowers the level that counts as
     /// "half covered", then the amount is firmed around it. Solid areas stay solid.
     /// </summary>
-    static float Wander(float amount, float noise, float strength)
+    internal static float Wander(float amount, float noise, float strength)
     {
         float border = Mathf.Clamp(0.5f + (noise - 0.5f) * 2f * strength, EdgeSoftness, 1f - EdgeSoftness);
         return RegionMath.SmoothStep(border - EdgeSoftness, border + EdgeSoftness, amount);
     }
 
     /// <summary>Two layers of Perlin noise, 0-1: borders wander at two sizes.</summary>
-    static float EdgeNoise(Vector2 world, Vector2 offset, RegionBuildSettings settings)
+    internal static float EdgeNoise(Vector2 world, Vector2 offset, RegionBuildSettings settings)
     {
         float scale = settings.edgeNoiseScale;
         float coarse = Mathf.PerlinNoise(world.x / scale + offset.x, world.y / scale + offset.y);
@@ -151,14 +151,14 @@ public static class TerrainPaint
     }
 
     /// <summary>A smooth random offset, about -1 to 1 cells in each direction.</summary>
-    static Vector2 Warp(Vector2 world, Vector2 offset)
+    internal static Vector2 Warp(Vector2 world, Vector2 offset)
     {
         float x = Mathf.PerlinNoise(world.x / WarpScale + offset.x, world.y / WarpScale + offset.y);
         float y = Mathf.PerlinNoise(world.x / WarpScale + offset.y, world.y / WarpScale + offset.x);
         return new Vector2(x - 0.5f, y - 0.5f) * 2f;
     }
 
-    static Vector2 RandomOffset(System.Random rng) => new(rng.Next(0, 10000), rng.Next(0, 10000));
+    internal static Vector2 RandomOffset(System.Random rng) => new(rng.Next(0, 10000), rng.Next(0, 10000));
 
     static float Max(float a, float b, float c, float d) => Mathf.Max(Mathf.Max(a, b), Mathf.Max(c, d));
 }

@@ -1,0 +1,127 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 85bf6e1a4ae945145b4fc30db63ec80f, type: 3}
+  m_Name: BuildSettings
+  m_EditorClassIdentifier: Assembly-CSharp::RegionBuildSettings
+  heightmapResolution: 2049
+  alphamapResolution: 2048
+  bumpScale: 120
+  bumpHeight: 2.5
+  roughScale: 25
+  roughHeight: 1
+  cliffWidth: 8
+  terraces: 1
+  terraceZoneScale: 4000
+  terraceZoneStart: 0.55
+  terraceZoneFull: 0.7
+  terraceStep: 8
+  terraceRiser: 0.35
+  terraceTilt: 0.2
+  terraceWobble: 1.5
+  terraceWobbleScale: 120
+  terraceSlopeMin: 0.05
+  terraceSlopeMax: 0.35
+  shoreDepth: 0.4
+  landAboveWater: 0.2
+  riverMinWidth: 3
+  riverWidthGrowth: 0.3
+  riverMaxWidth: 16
+  riverMinDepth: 0.6
+  riverDepthGrowth: 0.06
+  riverMaxDepth: 3
+  riverBankDrop: 0.8
+  riverBankWidth: 6
+  riverBankLift: 0.3
+  riverSpacing: 2
+  riverSimplifyCells: 0.5
+  riverSmoothing: 30
+  mainRoadWidth: 6.5
+  backRoadWidth: 4.5
+  laneWidth: 3.2
+  sampleSpacing: 1.5
+  simplifyCells: 0.45
+  profileSmoothing: 25
+  maxGrade: 0.12
+  shoulder: 12
+  surfaceLift: 0.05
+  padRadius: 14
+  padBlend: 10
+  buildingSize: {x: 8, y: 5, z: 10}
+  siteSize: {x: 20, y: 8, z: 20}
+  rockSlopeStart: 0.45
+  rockSlopeFull: 0.8
+  vergeWidth: 3
+  riverGravel: 2
+  riverDamp: 10
+  screeReach: 40
+  ridgeDepth: 0.02
+  ridgeStony: 0.6
+  paintWarp: 0.35
+  edgeNoise: 0.25
+  edgeNoiseScale: 25
+  terrainMaterial: {fileID: 2100000, guid: 6aa744a8b65ac5f4ea3a642a565fa79e, type: 2}
+  grassLayer: {fileID: 8574412962073106934, guid: e37018915e09d284e9841e4e5fad8cfc, type: 2}
+  dirtLayer: {fileID: 8574412962073106934, guid: d1cb3b9c34b038f4b9c397829fce2a12, type: 2}
+  stonyLayer: {fileID: 8574412962073106934, guid: 6cd76f06e7472e9429be263b17207733, type: 2}
+  rockLayer: {fileID: 8574412962073106934, guid: 7020c3ecf65a8dd409caa90bcf41fde4, type: 2}
+  biomes:
+    deepForest: {fileID: 11400000, guid: d2b20db9dfd440d469f4c979ccff7ab3, type: 2}
+    forestEdge: {fileID: 11400000, guid: e4c648bad859c604e99338f4816b31c5, type: 2}
+    field: {fileID: 11400000, guid: 7b5d69029e717b84996c4d375bd35b88, type: 2}
+    wetland: {fileID: 11400000, guid: 95c54df3e975d7244a13bb000555df61, type: 2}
+    riverbank: {fileID: 11400000, guid: dad8107351adc094284608ef574da15f, type: 2}
+    hollow: {fileID: 11400000, guid: 374bd74ce3568b449b3e7eb4c07aba76, type: 2}
+    upland: {fileID: 11400000, guid: b3ac2b1510f6c314bbdb98c1eda6cc94, type: 2}
+    verge: {fileID: 11400000, guid: 2fc0c4eeea6c46946ad096e56727e9ad, type: 2}
+  biomeResolution: 1024
+  biomeVergeWidth: 8
+  riverbankWidth: 15
+  uplandSlope: {x: 0.35, y: 0.55}
+  uplandHeight: {x: 0.75, y: 0.9}
+  deepForestDepth: 60
+  treeMaxSlope: 0.6
+  treeRoadClearance: 3
+  treeRiverClearance: 2
+  treeGap: 2.5
+  treeThinFrom: 250
+  treeThinTo: 700
+  treeFarDensity: 0.4
+  maxTrees: 1000000
+  treeDistance: 500
+  treeBillboardDistance: 150
+  treeCrossFadeLength: 100
+  detailResolution: 2048
+  detailDistance: 250
+  detailDensity: 1
+  foliagePatchScale: 40
+  rocks: {fileID: 11400000, guid: 030c359fb5736e74aa7f47d05140db16, type: 2}
+  rockRoadClearance: 2
+  maxRocks: 4000
+  mainRoadMaterial: {fileID: 2100000, guid: 98bd67e464cf5684ea1520502ed44059, type: 2}
+  backRoadMaterial: {fileID: 0}
+  laneMaterial: {fileID: 0}
+  waterMaterial: {fileID: 0}
+  riverMaterial: {fileID: 0}
+  buildingMaterial: {fileID: 0}
+  siteMaterial: {fileID: 0}
+  offRoad:
+    rollingResistance: 2.5
+    grip: 0.9
+  mainRoad:
+    rollingResistance: 1
+    grip: 1
+  backRoad:
+    rollingResistance: 1.5
+    grip: 0.95
+  lane:
+    rollingResistance: 2
+    grip: 0.9

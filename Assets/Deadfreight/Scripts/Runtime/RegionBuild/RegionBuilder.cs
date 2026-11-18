@@ -16,8 +16,10 @@ using Debug = UnityEngine.Debug;
 ///   3. Roads split so none overlap (RoadNetwork), then one at a time smoothed, given a
 ///      grade-limited height, and pressed into the ground (RoadShaper).
 ///   4. Pads levelled under places.
-///   5. Scene objects: terrain (painted by TerrainPaint, ground cover by GroundCoverPaint, trees by
-///      TreePlanting), lake water, river water, a mesh per road, boxes for places.
+///   5. Scene objects: terrain (painted by TerrainPaint), then what lies and grows on it: the
+///      ground surveyed (GroundSurvey) and split into biomes (BiomeMap), rocks laid by landform
+///      (RockPlacing), foliage (FoliagePaint) and trees (TreePlanting) by biome, keeping clear
+///      of the rocks. Then lake water, river water, a mesh per road, boxes for places.
 ///
 /// Build from the inspector buttons, or on Start. Keep this object at the world origin.
 /// Edit-mode builds aren't saved with the scene; they're rebuilt from the seed.
@@ -43,6 +45,9 @@ public sealed class RegionBuilder : MonoBehaviour
     public IReadOnlyList<RoadPath> Roads { get; private set; }
     public IReadOnlyList<RiverChannel> Rivers { get; private set; }
     public int TreeCount { get; private set; }
+    public int RockCount { get; private set; }
+    /// <summary>Where each biome is, from the last build (for the inspector preview).</summary>
+    public BiomeMap Biomes { get; private set; }
     public Pose EntryPose { get; private set; }
 
     public int Seed
@@ -109,7 +114,7 @@ public sealed class RegionBuilder : MonoBehaviour
         // 5. Scene.
         root = new GameObject(RootName);
         root.transform.SetParent(transform, false);
-        CreateTerrain(frame, field);
+        CreateTerrain(frame, field, lakeLevel);
         CreateWater(frame, lakeLevel);
         foreach (var river in rivers.Built) CreateRiver(river);
         foreach (var road in shaper.Built) CreateRoad(road);
@@ -118,7 +123,7 @@ public sealed class RegionBuilder : MonoBehaviour
 
         if (!Application.isPlaying) HideFromScene();
         Debug.Log($"Built region {seed} in {timer.ElapsedMilliseconds} ms: " +
-                  $"{shaper.Built.Count} road segments, {rivers.Built.Count} rivers, {TreeCount} trees, {Map.Places.Count} places.", this);
+                  $"{shaper.Built.Count} road segments, {rivers.Built.Count} rivers, {TreeCount} trees, {RockCount} rocks, {Map.Places.Count} places.", this);
     }
 
     public void Clear()
@@ -132,6 +137,8 @@ public sealed class RegionBuilder : MonoBehaviour
         Roads = null;
         Rivers = null;
         TreeCount = 0;
+        RockCount = 0;
+        Biomes = null;
         plainWater = null;
 
         // A build left over from before a script reload: the reference is gone, the object isn't.
@@ -141,7 +148,7 @@ public sealed class RegionBuilder : MonoBehaviour
 
     // ---------- scene objects ----------
 
-    void CreateTerrain(RegionFrame frame, HeightField field)
+    void CreateTerrain(RegionFrame frame, HeightField field, float lakeLevel)
     {
         var heights = field.Normalized(out float bottom, out float span);
 
@@ -155,10 +162,13 @@ public sealed class RegionBuilder : MonoBehaviour
         var paint = TerrainPaint.Weights(Map, frame, field, buildSettings, seed);
         data.SetAlphamaps(0, 0, paint);
 
-        // Ground cover grows where the paint says its ground is; trees where the plan has forest.
-        float waterHeight = regionSettings.seaLevel * regionSettings.relief;
-        GroundCoverPaint.Apply(data, paint, field, waterHeight, buildSettings, seed);
-        TreeCount = TreePlanting.Plant(data, Map, frame, field, buildSettings, waterHeight, seed);
+        // Rocks first, by landform; then foliage and trees, by biome, around them.
+        var survey = new GroundSurvey(Map, frame, field, buildSettings, lakeLevel);
+        Biomes = BiomeMap.Build(survey, seed);
+        var rocks = RockPlacing.Place(root.transform, survey, Biomes, seed);
+        RockCount = rocks.Count;
+        FoliagePaint.Apply(data, paint, survey, Biomes, rocks, seed);
+        TreeCount = TreePlanting.Plant(data, survey, Biomes, rocks, seed);
 
         var go = Terrain.CreateTerrainGameObject(data);
         go.name = "Terrain";
@@ -167,9 +177,13 @@ public sealed class RegionBuilder : MonoBehaviour
         AddSurface(go, buildSettings.offRoad);
 
         var terrain = go.GetComponent<Terrain>();
-        if (buildSettings.terrainMaterial != null) terrain.materialTemplate = buildSettings.terrainMaterial;
+        if (buildSettings.terrainMaterial != null) 
+            terrain.materialTemplate = buildSettings.terrainMaterial;
         terrain.detailObjectDistance = buildSettings.detailDistance;
+        terrain.detailObjectDensity = buildSettings.detailDensity;
         terrain.treeDistance = buildSettings.treeDistance;
+        terrain.treeBillboardDistance = buildSettings.treeBillboardDistance;
+        terrain.treeCrossFadeLength = buildSettings.treeCrossFadeLength;
     }
 
     /// <summary>

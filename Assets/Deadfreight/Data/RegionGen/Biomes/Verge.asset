@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 34de2749e789eb24380dd0daa1f65531, type: 3}
+  m_Name: Verge
+  m_EditorClassIdentifier: Assembly-CSharp::Biome
+  trees: []
+  treeSpacing: 10
+  treeFill: 0
+  foliage:
+  - prototype: {fileID: 919132149155446097, guid: 33e5daa5697d2c249978a01761142b3a, type: 3}
+    amount: 0.6
+    density: 1
+    scale: {x: 0.8, y: 2.5}
+    alignToGround: 0.6
+  - prototype: {fileID: 919132149155446097, guid: 75de1995989eb2b44a9f4f846f834185, type: 3}
+    amount: 0.4
+    density: 1
+    scale: {x: 0.8, y: 2.5}
+    alignToGround: 0.6
+  - prototype: {fileID: 919132149155446097, guid: 38dbeadb5b1f0d94d9de1d4e93c56740, type: 3}
+    amount: 0.3
+    density: 0.8
+    scale: {x: 0.9, y: 2.75}
+    alignToGround: 0.4
+  patchiness: 0.3

@@ -6,62 +6,76 @@ using UnityEngine;
 /// Plants trees on the terrain, using Unity's terrain tree system (instanced, culled by distance,
 /// collisions from each prefab's collider).
 ///
-///   Forest: points on a jittered grid treeSpacing apart; each kept with a chance that rises with
-///           the plan's forest amount, so forests are dense in the middle and thin at the edges.
-///   Open:   a much sparser grid of lone trees out where there is no forest.
+/// Each biome role with a Biome in its slot plants its own trees: points on a jittered grid the
+/// biome's treeSpacing apart, each kept with a chance of
 ///
-/// Every tree keeps clear of roads, rivers, lakes, cliffs, steep ground and the pads around places.
-/// If more trees qualify than maxTrees, a random selection is kept, so the cap thins the whole
-/// region evenly instead of cutting off one side of it.
+///     the biome's treeFill  ×  that role's weight there (BiomeMap)  ×  the thinning away from roads
+///
+/// so where biomes blend their trees mix, and forests are thick along the roads the players see
+/// and thinner deep in the woods they don't (that's most of the trees, so it's the big saving).
+///
+/// Every tree keeps clear of roads, rivers, lakes, cliffs, steep ground, place pads, rocks, and
+/// other trees (treeGap). If more than maxTrees qualify, a random selection is kept, thinning
+/// the whole region evenly instead of cutting off one side of it.
 /// </summary>
 public static class TreePlanting
 {
-    const float ForestStart = 0.25f;    // plan forest amount where trees start appearing...
-    const float ForestFull = 0.85f;     // ...and where they're as dense as treeSpacing allows
-    const float DeepForestFrom = 0.75f; // trees past this amount use DeepForest kinds, the rest ForestEdge
-    const float OpenBelow = 0.2f;       // lone trees only where the forest amount is below this
     const float AboveLake = 0.5f;       // metres: trees need at least this much dry ground
+    const float CliffAbove = 0.3f;      // plan cliff amount past which nothing grows
+    const int SeedSalt = 0x7ae5;
 
     /// <returns>How many trees were planted.</returns>
-    public static int Plant(TerrainData data, RegionMap map, RegionFrame frame, HeightField field,
-        RegionBuildSettings settings, float lakeLevel, int seed)
+    public static int Plant(TerrainData data, GroundSurvey survey, BiomeMap biomes, Footprints rocks, int seed)
     {
-        var kinds = new List<TreeKind>();
-        foreach (var kind in settings.trees)
-            if (kind != null && kind.prefab != null && kind.weight > 0f) kinds.Add(kind);
-        if (kinds.Count == 0) return 0;
-
-        var prototypes = new TreePrototype[kinds.Count];
-        for (int k = 0; k < kinds.Count; k++) prototypes[k] = new TreePrototype { prefab = kinds[k].prefab };
+        var settings = survey.Settings;
+        var prototypeIndex = Prototypes(settings.biomes, out var prototypes);
         data.treePrototypes = prototypes;
+        if (prototypes.Length == 0) return 0;
 
-        var space = new Clearance(map, frame, field, settings, lakeLevel);
-        var rng = new System.Random(seed ^ 0x7ae5);
+        var rng = new System.Random(seed ^ SeedSalt);
         var trees = new List<TreeInstance>();
+        var standing = new Footprints();
+        float gap = 0.5f * settings.treeGap;   // each tree's footprint radius: two never closer than treeGap
 
-        // Forest trees.
-        Scatter(field, settings.treeSpacing, rng, world =>
+        for (int role = 0; role < BiomeSet.RoleCount; role++)
         {
-            float forest = RegionMath.SmoothStep(ForestStart, ForestFull, ForestAt(map, frame, world));
-            if (rng.NextDouble() >= forest || !space.Allows(world)) return;
-            var habitat = forest >= DeepForestFrom ? TreeHabitat.DeepForest : TreeHabitat.ForestEdge;
-            AddTree(trees, kinds, Habitat(habitat, space.IsWet(world), kinds), world, field, rng);
-        });
+            var biome = settings.biomes[role];
+            if (biome == null || biome.trees.Length == 0) continue;
 
-        // Lone trees in the open.
-        Scatter(field, settings.openTreeSpacing, rng, world =>
-        {
-            if (ForestAt(map, frame, world) >= OpenBelow) return;
-            if (rng.NextDouble() >= settings.openTreeChance || !space.Allows(world)) return;
-            AddTree(trees, kinds, Habitat(TreeHabitat.Open, space.IsWet(world), kinds), world, field, rng);
-        });
+            Scatter(survey.Field, biome.treeSpacing, rng, world =>
+            {
+                float chance = biome.treeFill * biomes.Weight(world, (BiomeRole)role) * RoadThinning(survey.FromRoad(world), settings);
+                if (rng.NextDouble() >= chance || !Allowed(world, survey)) return;
+                if (rocks.Overlaps(world, gap) || standing.Overlaps(world, gap)) return;
+
+                var tree = Pick(biome.trees, rng);
+                if (tree == null) return;
+                standing.Add(world, gap);
+                trees.Add(Instance(tree, prototypeIndex[tree.prefab], world, survey.Field, rng));
+            });
+        }
 
         if (trees.Count > settings.maxTrees) KeepRandom(trees, settings.maxTrees, rng);
         data.SetTreeInstances(trees.ToArray(), true);
         return trees.Count;
     }
 
-    // ---------- placement ----------
+    // ---------- where ----------
+
+    /// <summary>1 near roads, falling to treeFarDensity once far from them.</summary>
+    static float RoadThinning(float fromRoad, RegionBuildSettings settings) =>
+        Mathf.Lerp(1f, settings.treeFarDensity, RegionMath.SmoothStep(settings.treeThinFrom, settings.treeThinTo, fromRoad));
+
+    static bool Allowed(Vector2 world, GroundSurvey survey)
+    {
+        var settings = survey.Settings;
+        if (survey.BelowLake(world, AboveLake)) return false;
+        if (survey.Slope(world) > settings.treeMaxSlope) return false;
+        if (survey.Cliff(survey.Cell(world)) > CliffAbove) return false;
+        if (survey.FromRoad(world) < settings.treeRoadClearance) return false;
+        if (survey.FromRiver(world) < settings.treeRiverClearance) return false;
+        return !survey.NearPad(world, settings.treeRoadClearance);
+    }
 
     /// <summary>Calls <paramref name="visit"/> once per cell of a grid <paramref name="spacing"/> metres apart, at a random spot in the cell.</summary>
     static void Scatter(HeightField field, float spacing, System.Random rng, System.Action<Vector2> visit)
@@ -69,26 +83,58 @@ public static class TreePlanting
         int columns = Mathf.FloorToInt(field.SizeX / spacing), rows = Mathf.FloorToInt(field.SizeZ / spacing);
         for (int row = 0; row < rows; row++)
         for (int column = 0; column < columns; column++)
-        {
-            var world = new Vector2((column + (float)rng.NextDouble()) * spacing, (row + (float)rng.NextDouble()) * spacing);
-            visit(world);
-        }
+            visit(new Vector2((column + (float)rng.NextDouble()) * spacing, (row + (float)rng.NextDouble()) * spacing));
     }
 
-    static float ForestAt(RegionMap map, RegionFrame frame, Vector2 world) =>
-        GridSampling.Bilinear(map.Forest, map.Width, map.Height, frame.WorldToCell(world));
+    // ---------- which ----------
 
-    /// <summary>Wet ground uses Wet kinds when the region lists any; otherwise the habitat as given.</summary>
-    static TreeHabitat Habitat(TreeHabitat habitat, bool wet, List<TreeKind> kinds) =>
-        wet && kinds.Exists(k => k.grows == TreeHabitat.Wet) ? TreeHabitat.Wet : habitat;
-
-    static void AddTree(List<TreeInstance> trees, List<TreeKind> kinds, TreeHabitat habitat, Vector2 world, HeightField field, System.Random rng)
+    /// <summary>
+    /// One terrain tree prototype per distinct prefab across all biomes (a prefab in two biomes is
+    /// still one prototype). Returns each prefab's prototype index.
+    /// </summary>
+    static Dictionary<GameObject, int> Prototypes(BiomeSet biomes, out TreePrototype[] prototypes)
     {
-        int k = PickKind(kinds, habitat, rng);
-        if (k < 0) return;      // nothing grows in this habitat in this region
+        var index = new Dictionary<GameObject, int>();
+        var list = new List<TreePrototype>();
+        for (int role = 0; role < BiomeSet.RoleCount; role++)
+        {
+            var biome = biomes[role];
+            if (biome == null) continue;
+            foreach (var tree in biome.trees)
+            {
+                if (tree == null || tree.prefab == null || index.ContainsKey(tree.prefab)) continue;
+                index[tree.prefab] = list.Count;
+                list.Add(new TreePrototype { prefab = tree.prefab });
+            }
+        }
+        prototypes = list.ToArray();
+        return index;
+    }
 
-        float scale = Mathf.Lerp(kinds[k].scale.x, kinds[k].scale.y, (float)rng.NextDouble());
-        trees.Add(new TreeInstance
+    /// <summary>A random tree, chosen by weight, from those with a prefab; null if none.</summary>
+    static BiomeTree Pick(BiomeTree[] trees, System.Random rng)
+    {
+        float total = 0f;
+        foreach (var tree in trees)
+            if (tree != null && tree.prefab != null && tree.weight > 0f) total += tree.weight;
+        if (total <= 0f) return null;
+
+        float pick = (float)rng.NextDouble() * total;
+        BiomeTree last = null;
+        foreach (var tree in trees)
+        {
+            if (tree == null || tree.prefab == null || tree.weight <= 0f) continue;
+            last = tree;
+            pick -= tree.weight;
+            if (pick <= 0f) return tree;
+        }
+        return last;    // only reached through rounding
+    }
+
+    static TreeInstance Instance(BiomeTree tree, int prototype, Vector2 world, HeightField field, System.Random rng)
+    {
+        float scale = Mathf.Lerp(tree.scale.x, tree.scale.y, (float)rng.NextDouble());
+        return new TreeInstance
         {
             position = new Vector3(world.x / field.SizeX, 0f, world.y / field.SizeZ),    // height snaps to the terrain
             widthScale = scale,
@@ -96,26 +142,8 @@ public static class TreePlanting
             rotation = (float)(rng.NextDouble() * Mathf.PI * 2.0),
             color = Color.white,
             lightmapColor = Color.white,
-            prototypeIndex = k,
-        });
-    }
-
-    /// <summary>A random kind that grows in <paramref name="habitat"/>, chosen by weight; -1 if none does.</summary>
-    static int PickKind(List<TreeKind> kinds, TreeHabitat habitat, System.Random rng)
-    {
-        float total = 0f;
-        foreach (var kind in kinds)
-            if (kind.grows == habitat) total += kind.weight;
-        if (total <= 0f) return -1;
-
-        float pick = (float)rng.NextDouble() * total;
-        for (int k = 0; k < kinds.Count; k++)
-        {
-            if (kinds[k].grows != habitat) continue;
-            pick -= kinds[k].weight;
-            if (pick <= 0f) return k;
-        }
-        return kinds.FindLastIndex(kind => kind.grows == habitat);
+            prototypeIndex = prototype,
+        };
     }
 
     /// <summary>Keeps a random <paramref name="count"/> of the trees (a partial shuffle).</summary>
@@ -127,75 +155,5 @@ public static class TreePlanting
             (trees[i], trees[j]) = (trees[j], trees[i]);
         }
         trees.RemoveRange(count, trees.Count - count);
-    }
-
-    // ---------- where trees may grow ----------
-
-    /// <summary>
-    /// Answers "may a tree stand here?" and "is it wet here?" quickly, from distance fields worked
-    /// out once: metres to the nearest road surface and to the nearest river water.
-    /// </summary>
-    sealed class Clearance
-    {
-        readonly RegionMap map;
-        readonly RegionFrame frame;
-        readonly HeightField field;
-        readonly RegionBuildSettings settings;
-        readonly float lakeLevel;
-        readonly float[] toRoad, toRiver;       // metres, per height sample
-        readonly List<Vector2> places = new();
-
-        public Clearance(RegionMap map, RegionFrame frame, HeightField field, RegionBuildSettings settings, float lakeLevel)
-        {
-            this.map = map;
-            this.frame = frame;
-            this.field = field;
-            this.settings = settings;
-            this.lakeLevel = lakeLevel;
-            toRoad = MetresToMarked(field, field.IsRoadCore);
-            toRiver = MetresToMarked(field, field.IsChannel);
-            foreach (var place in map.Places) places.Add(frame.CellToWorld(place.Cell));
-        }
-
-        public bool Allows(Vector2 world)
-        {
-            if (field.HeightAt(world) < lakeLevel + AboveLake) return false;
-            if (field.SlopeAt(world) > settings.treeMaxSlope) return false;
-            if (GridSampling.Bilinear(map.Cliff, map.Width, map.Height, frame.WorldToCell(world)) > 0.3f) return false;
-
-            int sample = SampleIndex(world);
-            if (toRoad[sample] < settings.treeRoadClearance) return false;
-            if (toRiver[sample] < settings.treeRiverClearance) return false;
-
-            float padSqr = (settings.padRadius + settings.treeRoadClearance) * (settings.padRadius + settings.treeRoadClearance);
-            foreach (var place in places)
-                if ((place - world).sqrMagnitude < padSqr) return false;
-            return true;
-        }
-
-        public bool IsWet(Vector2 world) =>
-            toRiver[SampleIndex(world)] < settings.wetTreeReach
-            || GridSampling.Bilinear(map.Marsh, map.Width, map.Height, frame.WorldToCell(world)) > 0.5f;
-
-        int SampleIndex(Vector2 world)
-        {
-            int c = Mathf.Clamp(Mathf.RoundToInt(world.x / field.StepX), 0, field.Resolution - 1);
-            int r = Mathf.Clamp(Mathf.RoundToInt(world.y / field.StepZ), 0, field.Resolution - 1);
-            return r * field.Resolution + c;
-        }
-
-        static float[] MetresToMarked(HeightField field, System.Func<int, int, bool> isMarked)
-        {
-            int n = field.Resolution;
-            var marked = new bool[n * n];
-            for (int r = 0; r < n; r++)
-            for (int c = 0; c < n; c++)
-                marked[r * n + c] = isMarked(c, r);
-
-            GridOps.NearestMarked(marked, n, n, out var samples, out _);
-            float step = 0.5f * (field.StepX + field.StepZ);
-            for (int i = 0; i < samples.Length; i++) samples[i] *= step;
-            return samples;
-        }
     }
 }

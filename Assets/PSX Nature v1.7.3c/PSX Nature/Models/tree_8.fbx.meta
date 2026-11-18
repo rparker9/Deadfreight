@@ -3,7 +3,12 @@ guid: 21a9367805d006240b4d3aaf42c1413a
 ModelImporter:
   serializedVersion: 24600
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: pine_bark_2_dead
+    second: {fileID: 2100000, guid: b83ebd2df009f214c875c1540ef4bf22, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
