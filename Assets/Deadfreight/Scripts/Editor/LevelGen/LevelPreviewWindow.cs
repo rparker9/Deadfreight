@@ -1,26 +1,28 @@
 // Scripts/Editor/LevelGen/LevelPreviewWindow.cs
-using System.Collections.Generic;
 using System.Diagnostics;
 using UnityEditor;
 using UnityEngine;
 
 /// <summary>
+/// Top-down preview of a generated level. Change the seed or edit the settings asset and it
+/// regenerates. The land can be coloured several ways (LandView; colours and legends in
+/// LevelPreviewWindow.Views.cs), and hovering a cell shows its details.
 /// </summary>
 public sealed partial class LevelPreviewWindow : EditorWindow
 {
     const float PanelWidth = 320f;
-    const string DefaultSettingsPath = "Assets/Deadfreight/Data/LevelGen/LevelSettings.asset";
+    const string DefaultSettingsPath = "Assets/Deadfreight/Data/LevelGen/PlanSettings.asset";
 
-    [SerializeField] LevelSettings settings;
+    [SerializeField] PlanSettings settings;
     [SerializeField] int seed = 1;
     [SerializeField] LandView landView = LandView.ShadedRelief;
     [SerializeField] bool contours;
     [SerializeField] float contourInterval = 10f;
     [SerializeField] bool smoothPixels;
 
-    LevelLayout map;
+    LevelPlan plan;
 
-    // Where the map was last drawn, and the cell under the mouse (if any).
+    // Where the plan was last drawn, and the cell under the mouse (if any).
     Rect mapRect;
     float mapScale;
     Vector2Int? hoverCell;
@@ -57,12 +59,11 @@ public sealed partial class LevelPreviewWindow : EditorWindow
     // ---------- Generation ----------
     void Regenerate()
     {
-        map = null;
-        map = null;
+        plan = null;
         if (settings == null) return;
 
         var timer = Stopwatch.StartNew();
-        map = LevelGenerator.Generate(seed, settings);
+        plan = LevelGenerator.Generate(seed, settings);
         generateMs = timer.ElapsedMilliseconds;
 
         BuildTexture();
@@ -70,37 +71,28 @@ public sealed partial class LevelPreviewWindow : EditorWindow
 
     void BuildTexture()
     {
-        if (texture == null || texture.width != map.Width || texture.height != map.Height)
+        if (texture == null || texture.width != plan.CellsX || texture.height != plan.CellsY)
         {
             if (texture != null) DestroyImmediate(texture);
-            texture = new Texture2D(map.Width, map.Height, TextureFormat.RGBA32, false)
+            texture = new Texture2D(plan.CellsX, plan.CellsY, TextureFormat.RGBA32, false)
             {
                 wrapMode = TextureWrapMode.Clamp,
                 hideFlags = HideFlags.HideAndDontSave,
             };
         }
 
-        var pixels = new Color[map.Width * map.Height];
-        for (int y = 0; y < map.Height; y++)
-        {
-            for (int x = 0; x < map.Width; x++)
-            {
-                int i = y * map.Width + x;
-                // Textures start at the bottom row; the map's y runs downward.
-                pixels[(map.Height - 1 - y) * map.Width + x] = CellColor(i);
-            }
-        }
+        // Textures start at the bottom row, and the plan's y runs north, so pixels line up with cells.
+        var pixels = new Color[plan.CellsX * plan.CellsY];
+        for (int i = 0; i < pixels.Length; i++) pixels[i] = CellColor(i);
         texture.filterMode = smoothPixels ? FilterMode.Bilinear : FilterMode.Point;
         texture.SetPixels(pixels);
         texture.Apply();
     }
 
-    /// <summary>
-    /// Gets the colour of a cell, based on the land view, and whether it's on a contour or route.
-    /// </summary>
+    /// <summary>A cell's colour: the land view, darkened on contour lines.</summary>
     Color CellColor(int i)
     {
-        var c = LandColour(i);
+        var c = LandColor(i);
         if (contours && contourInterval > 0f && OnContour(i)) 
             c *= 1f - ContourDarken;
 
@@ -128,7 +120,7 @@ public sealed partial class LevelPreviewWindow : EditorWindow
         EditorGUILayout.LabelField("Level", EditorStyles.boldLabel);
 
         EditorGUI.BeginChangeCheck();
-        settings = (LevelSettings)EditorGUILayout.ObjectField("Settings", settings, typeof(LevelSettings), false);
+        settings = (PlanSettings)EditorGUILayout.ObjectField("Settings", settings, typeof(PlanSettings), false);
         using (new EditorGUILayout.HorizontalScope())
         {
             seed = EditorGUILayout.IntField("Seed", seed);
@@ -153,26 +145,29 @@ public sealed partial class LevelPreviewWindow : EditorWindow
         smoothPixels = EditorGUILayout.Toggle("Smooth pixels", smoothPixels);
         bool redraw = EditorGUI.EndChangeCheck();
 
-        if (map != null && settings != null)
-        {
-            DrawLandLegend();
-        }
+        if (regenerate) Regenerate();
+        else if (redraw && plan != null) BuildTexture();
 
+        if (plan != null && settings != null)
+            DrawLandLegend();
 
         if (settings == null)
         {
-            EditorGUILayout.HelpBox("Assign Level Settings to start.", MessageType.Info);
+            EditorGUILayout.HelpBox("Assign Plan Settings to start.", MessageType.Info);
             if (GUILayout.Button("Create default settings")) CreateDefaultSettings();
             return;
         }
 
-        if (map == null) 
+        if (plan == null)
             return;
 
         EditorGUILayout.Space();
-        if (map.Failure != null)
+        float km = plan.CellsX * plan.CellSize / 1000f, kmTall = plan.CellsY * plan.CellSize / 1000f;
+        EditorGUILayout.LabelField($"{km:0.#} × {kmTall:0.#} km · generated in {generateMs} ms", EditorStyles.miniLabel);
+
+        if (plan.Failure != null)
         {
-            EditorGUILayout.HelpBox(map.Failure + " Try another seed or loosen the settings.", MessageType.Warning);
+            EditorGUILayout.HelpBox(plan.Failure + " Try another seed or loosen the settings.", MessageType.Warning);
             return;
         }
     }
@@ -180,13 +175,13 @@ public sealed partial class LevelPreviewWindow : EditorWindow
     void DrawCanvas(Rect canvas)
     {
         EditorGUI.DrawRect(canvas, new Color(0.13f, 0.14f, 0.15f));
-        if (map == null || texture == null) 
+        if (plan == null || texture == null)
             return;
 
-        // Fit the map into the canvas, keeping its proportions.
+        // Fit the plan into the canvas, keeping its proportions.
         const float pad = 12f;
-        mapScale = Mathf.Min((canvas.width - pad * 2f) / map.Width, (canvas.height - pad * 2f) / map.Height);
-        mapRect = new Rect(canvas.x + pad, canvas.y + pad, map.Width * mapScale, map.Height * mapScale);
+        mapScale = Mathf.Min((canvas.width - pad * 2f) / plan.CellsX, (canvas.height - pad * 2f) / plan.CellsY);
+        mapRect = new Rect(canvas.x + pad, canvas.y + pad, plan.CellsX * mapScale, plan.CellsY * mapScale);
         TrackHover();
         GUI.DrawTexture(mapRect, texture, ScaleMode.StretchToFill, false);
 
@@ -197,7 +192,9 @@ public sealed partial class LevelPreviewWindow : EditorWindow
             DrawHoverReport(hoverCell.Value);
     }
 
-    Vector3 ToScreen(Vector2Int c) => new(mapRect.x + (c.x + 0.5f) * mapScale, mapRect.y + (c.y + 0.5f) * mapScale, 0f);
+    /// <summary>Screen position of a cell's centre. North is up, and the screen's y runs down: the one flip.</summary>
+    Vector3 ToScreen(Vector2Int c) =>
+        new(mapRect.x + (c.x + 0.5f) * mapScale, mapRect.y + (plan.CellsY - 1 - c.y + 0.5f) * mapScale, 0f);
 
     /// <summary>Works out which cell the mouse is over, and repaints as it moves.</summary>
     void TrackHover()
@@ -215,7 +212,9 @@ public sealed partial class LevelPreviewWindow : EditorWindow
         if (mapRect.Contains(e.mousePosition))
         {
             var local = (e.mousePosition - mapRect.position) / mapScale;
-            cell = new Vector2Int(Mathf.Clamp((int)local.x, 0, map.Width - 1), Mathf.Clamp((int)local.y, 0, map.Height - 1));
+            cell = new Vector2Int(
+                Mathf.Clamp((int)local.x, 0, plan.CellsX - 1),
+                Mathf.Clamp(plan.CellsY - 1 - (int)local.y, 0, plan.CellsY - 1));    // screen y runs down, the plan's up
         }
         if (cell != hoverCell)
         {
@@ -250,7 +249,7 @@ public sealed partial class LevelPreviewWindow : EditorWindow
         if (!AssetDatabase.IsValidFolder(parent + "/LevelGen"))
             AssetDatabase.CreateFolder(parent, "LevelGen");
 
-        var asset = CreateInstance<LevelSettings>();
+        var asset = CreateInstance<PlanSettings>();
         AssetDatabase.CreateAsset(asset, AssetDatabase.GenerateUniqueAssetPath(DefaultSettingsPath));
         AssetDatabase.SaveAssets();
         settings = asset;

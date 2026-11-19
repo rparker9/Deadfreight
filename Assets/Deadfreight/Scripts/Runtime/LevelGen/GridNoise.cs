@@ -8,13 +8,13 @@ using UnityEngine;
 public static class GridNoise
 {
     /// <summary>Layered noise: each octave half the size and half the strength. Roughly -1..1.</summary>
-    public static float[] Fbm(int w, int h, float scale, int octaves, System.Random rng)
+    public static float[] Fbm(int cellsX, int cellsY, float scale, int octaves, System.Random rng)
     {
-        var total = new float[w * h];
+        var total = new float[cellsX * cellsY];
         float amp = 1f, norm = 0f;
         for (int o = 0; o < octaves; o++)
         {
-            var layer = Perlin(w, h, scale, rng);
+            var layer = Perlin(cellsX, cellsY, scale, rng);
             for (int i = 0; i < total.Length; i++) total[i] += layer[i] * amp;
             norm += amp;
             amp *= 0.5f;
@@ -25,10 +25,10 @@ public static class GridNoise
     }
 
     /// <summary>One layer of gradient noise; `scale` is cells per noise period.</summary>
-    public static float[] Perlin(int w, int h, float scale, System.Random rng)
+    public static float[] Perlin(int cellsX, int cellsY, float scale, System.Random rng)
     {
         scale = Mathf.Max(1f, scale);
-        int gw = (int)(w / scale) + 2, gh = (int)(h / scale) + 2;
+        int gw = (int)(cellsX / scale) + 2, gh = (int)(cellsY / scale) + 2;
         var gx = new float[gw * gh];
         var gy = new float[gw * gh];
         for (int i = 0; i < gx.Length; i++)
@@ -38,10 +38,10 @@ public static class GridNoise
             gy[i] = Mathf.Sin(a);
         }
 
-        var result = new float[w * h];
-        for (int y = 0; y < h; y++)
+        var result = new float[cellsX * cellsY];
+        for (int y = 0; y < cellsY; y++)
         {
-            for (int x = 0; x < w; x++)
+            for (int x = 0; x < cellsX; x++)
             {
                 float sx = x / scale, sy = y / scale;
                 int x0 = (int)sx, y0 = (int)sy;
@@ -58,7 +58,7 @@ public static class GridNoise
                 float n01 = Dot(x0, y0 + 1, fx, fy - 1f);
                 float n11 = Dot(x0 + 1, y0 + 1, fx - 1f, fy - 1f);
                 float u = Fade(fx), v = Fade(fy);
-                result[y * w + x] = Mathf.Lerp(Mathf.Lerp(n00, n10, u), Mathf.Lerp(n01, n11, u), v);
+                result[y * cellsX + x] = Mathf.Lerp(Mathf.Lerp(n00, n10, u), Mathf.Lerp(n01, n11, u), v);
             }
         }
         return result;

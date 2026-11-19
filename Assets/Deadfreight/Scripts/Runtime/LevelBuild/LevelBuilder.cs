@@ -3,16 +3,16 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using UnityEngine;
 using UnityEngine.Serialization;
-using UnityEngine.Splines;
 using Debug = UnityEngine.Debug;
 
 /// <summary>
-/// Builds a level in the scene, with terrain, roads, and buildings.
+/// Generates a plan from the seed and builds it in the scene. For now that's the terrain alone.
 /// </summary>
 public sealed class LevelBuilder : MonoBehaviour
 {
-    [SerializeField] LevelSettings levelSettings;
-    [SerializeField] LevelBuildSettings buildSettings;
+    [FormerlySerializedAs("levelSettings")]
+    [SerializeField] PlanSettings planSettings;
+    [SerializeField] BuildSettings buildSettings;
     [SerializeField] int seed = 1;
     [SerializeField] bool buildOnStart = true;
 
@@ -21,8 +21,7 @@ public sealed class LevelBuilder : MonoBehaviour
     GameObject root;
     readonly List<Object> createdAssets = new();    // meshes, materials, terrain data: destroyed on Clear
 
-    public LevelLayout Map { get; private set; }
-    public Pose EntryPose { get; private set; }
+    public LevelPlan Plan { get; private set; }
 
     public int Seed
     {
@@ -43,37 +42,34 @@ public sealed class LevelBuilder : MonoBehaviour
     {
         Clear();
 
-        if (levelSettings == null || buildSettings == null)
+        if (planSettings == null || buildSettings == null)
         {
-            Debug.LogWarning("LevelBuilder needs Level Settings and Level Build Settings.", this);
+            Debug.LogWarning("LevelBuilder needs Plan Settings and Build Settings.", this);
             return;
         }
 
-        // Generate the level layout.
         var timer = Stopwatch.StartNew();
-        Map = LevelGenerator.Generate(seed, levelSettings);
-
-        // Early exit if the level generation failed; the map will have a Failure string.
-        if (Map.Failure != null)
+        Plan = LevelGenerator.Generate(seed, planSettings);
+        if (Plan.Failure != null)
         {
-            Debug.LogWarning($"Level {seed} not built: {Map.Failure}", this);
+            Debug.LogWarning($"Level {seed} not built: {Plan.Failure}", this);
             return;
         }
 
-        // 
-        var frame = new LevelFrame(Map);
-        var field = HeightField.FromLayout(Map, frame, buildSettings);
+        // The plan's ground heights → the terrain's, at its resolution.
+        var planToWorld = new PlanToWorld(Plan);
+        var heights = TerrainHeights.FromPlan(Plan, planToWorld, buildSettings);
 
         // Create the root object and the terrain in the scene.
         root = new GameObject(RootName);
         root.transform.SetParent(transform, false);
-        CreateTerrain(frame, field);
+        CreateTerrain(planToWorld, heights);
 
         // Remove any leftover objects from a previous build, and hide all generated objects from the scene so they don't get saved.
         if (!Application.isPlaying) 
             HideFromScene();
         
-        Debug.Log($"Built level {seed} in {timer.ElapsedMilliseconds * 0.001f:F2}s, {Map.RejectedAlternates} alternates rejected.", this);
+        Debug.Log($"Built level {seed} in {timer.ElapsedMilliseconds * 0.001f:F2}s.", this);
     }
 
     public void Clear()
@@ -87,7 +83,7 @@ public sealed class LevelBuilder : MonoBehaviour
                 Discard(asset);
         
         createdAssets.Clear();
-        Map = null;
+        Plan = null;
 
         // A build left over from before a script reload: the reference is gone, the object isn't.
         var leftover = transform.Find(RootName);
@@ -96,15 +92,15 @@ public sealed class LevelBuilder : MonoBehaviour
 
     // ---------- Scene Objects ----------
 
-    /// <summary>The terrain from the field's heights, covered in the one ground layer.</summary>
-    void CreateTerrain(LevelFrame frame, HeightField field)
+    /// <summary>The terrain from the heights, covered in the one ground layer.</summary>
+    void CreateTerrain(PlanToWorld planToWorld, TerrainHeights heights)
     {
-        var heights = field.Normalized(out float bottom, out float span);
+        var normalized = heights.Normalized(out float bottom, out float span);
 
         var data = Track(new TerrainData());
-        data.heightmapResolution = field.Resolution;    // before size: changing resolution rescales size
-        data.size = new Vector3(frame.SizeX, span, frame.SizeZ);
-        data.SetHeights(0, 0, heights);
+        data.heightmapResolution = heights.Resolution;    // before size: changing resolution rescales size
+        data.size = new Vector3(planToWorld.SizeX, span, planToWorld.SizeZ);
+        data.SetHeights(0, 0, normalized);
         data.terrainLayers = new[]
         {
             buildSettings.groundLayer != null ? buildSettings.groundLayer : PlainLayer(new Color(0.42f, 0.50f, 0.30f)),
@@ -118,6 +114,7 @@ public sealed class LevelBuilder : MonoBehaviour
         var terrain = go.GetComponent<Terrain>();
         if (buildSettings.terrainMaterial != null) terrain.materialTemplate = buildSettings.terrainMaterial;
     }
+
     // ---------- Helpers ----------
 
     TerrainLayer PlainLayer(Color color)

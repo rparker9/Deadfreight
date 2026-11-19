@@ -9,7 +9,7 @@ using UnityEngine;
 [CustomEditor(typeof(LevelBuilder))]
 public sealed class LevelBuilderEditor : Editor
 {
-    const string DefaultBuildSettingsPath = "Assets/Deadfreight/Data/LevelGen/LevelBuildSettings.asset";
+    const string DefaultBuildSettingsPath = "Assets/Deadfreight/Data/LevelGen/BuildSettings.asset";
 
     public override void OnInspectorGUI()
     {
@@ -35,24 +35,23 @@ public sealed class LevelBuilderEditor : Editor
             if (GUILayout.Button("Clear")) builder.Clear();
         }
 
-        if (builder.Map?.Failure != null)
+        if (builder.Plan?.Failure != null)
         {
-            EditorGUILayout.HelpBox($"Not built: {builder.Map.Failure} Try another seed.", MessageType.Warning);
+            EditorGUILayout.HelpBox($"Not built: {builder.Plan.Failure} Try another seed.", MessageType.Warning);
         }
-        else if (builder.Map != null && builder.Roads != null)
+        else if (builder.Plan != null)
         {
+            var plan = builder.Plan;
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField($"Entry on the {builder.Map.Entry.Edge} edge · {builder.Roads.Count} road segments",
+            EditorGUILayout.LabelField(
+                $"{plan.CellsX * plan.CellSize / 1000f:0.#} × {plan.CellsY * plan.CellSize / 1000f:0.#} km · {plan.Relief:0} m relief",
                 EditorStyles.miniLabel);
-            foreach (var route in builder.Map.Routes)
-                EditorGUILayout.LabelField($"{route.Name}: {route.OneWayMiles:0.0} mi · ~{route.OneWayMinutes:0} min one way",
-                    EditorStyles.miniLabel);
         }
     }
 
     void CreateDefaultBuildSettings()
     {
-        var asset = CreateInstance<LevelBuildSettings>();
+        var asset = CreateInstance<BuildSettings>();
         AssetDatabase.CreateAsset(asset, AssetDatabase.GenerateUniqueAssetPath(DefaultBuildSettingsPath));
         AssetDatabase.SaveAssets();
         serializedObject.FindProperty("buildSettings").objectReferenceValue = asset;

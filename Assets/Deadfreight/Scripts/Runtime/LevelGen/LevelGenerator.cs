@@ -1,41 +1,38 @@
 // Scripts/Runtime/LevelGen/LevelGenerator.cs
-using System.Collections.Generic;
-using UnityEngine;
 
 /// <summary>
-/// Generates a level layout with land, roads, and stops. 
+/// Makes a LevelPlan from a seed and PlanSettings. For now that's the land alone
+/// (LevelGenerator.Land.cs); later stages go in their own LevelGenerator.*.cs files.
 /// </summary>
 public sealed partial class LevelGenerator
 {
-    readonly LevelLayout map;
-    readonly LevelSettings settings;
+    readonly LevelPlan plan;
+    readonly PlanSettings settings;
     readonly System.Random rng;
-    readonly int width, height, cellCount;
+    readonly int cellsX, cellsY, cellCount;
 
-    GridPathfinder finder;
-
-    public static LevelLayout Generate(int seed, LevelSettings settings)
+    public static LevelPlan Generate(int seed, PlanSettings settings)
     {
         var generator = new LevelGenerator(seed, settings);
         generator.Run();
-        return generator.map;
+        return generator.plan;
     }
 
-    LevelGenerator(int seed, LevelSettings settings)
+    LevelGenerator(int seed, PlanSettings settings)
     {
         this.settings = settings;
         rng = new System.Random(seed);
-        map = new LevelLayout(settings.width, settings.height, settings.cellSize)
+        plan = new LevelPlan(settings.cellsX, settings.cellsY, settings.cellSize)
         {
             Relief = settings.relief,
         };
-        width = map.Width;
-        height = map.Height;
-        cellCount = width * height;
+        cellsX = plan.CellsX;
+        cellsY = plan.CellsY;
+        cellCount = cellsX * cellsY;
     }
 
     void Run()
     {
-        BuildLand();
+        ShapeLand();
     }
 }
