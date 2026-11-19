@@ -7,7 +7,8 @@ using Debug = UnityEngine.Debug;
 
 /// <summary>
 /// Generates a plan from the seed and region, and builds it in the scene: the terrain, painted
-/// with the region's zones, and the region's atmosphere handed to the scene's DayNightCycle.
+/// with the region's zones, the water surface, and the region's atmosphere handed to the
+/// scene's DayNightCycle.
 /// </summary>
 public sealed class LevelBuilder : MonoBehaviour
 {
@@ -21,6 +22,7 @@ public sealed class LevelBuilder : MonoBehaviour
 
     const string RootName = "Generated Level";
     static readonly Color DefaultGround = new(0.42f, 0.50f, 0.30f);    // for a region with no zones
+    static readonly Color DefaultWater = new(0.10f, 0.20f, 0.20f);     // for a region with no water material
 
     GameObject root;
     readonly List<Object> createdAssets = new();    // meshes, materials, terrain data: destroyed on Clear
@@ -74,6 +76,7 @@ public sealed class LevelBuilder : MonoBehaviour
         root = new GameObject(RootName);
         root.transform.SetParent(transform, false);
         CreateTerrain(planToWorld, heights);
+        CreateWater(planToWorld);
         ApplyAtmosphere();
 
         // Remove any leftover objects from a previous build, and hide all generated objects from the scene so they don't get saved.
@@ -164,6 +167,41 @@ public sealed class LevelBuilder : MonoBehaviour
         weights[row, column, Plan.Zone[Plan.Index(new Vector2Int(x0 + 1, y0))]] += tx * (1f - ty);
         weights[row, column, Plan.Zone[Plan.Index(new Vector2Int(x0, y0 + 1))]] += (1f - tx) * ty;
         weights[row, column, Plan.Zone[Plan.Index(new Vector2Int(x0 + 1, y0 + 1))]] += tx * ty;
+    }
+
+    /// <summary>
+    /// One flat surface over the whole level at the water line. The terrain hides it wherever the
+    /// ground is above it, so it shows only over ground below the line. No collider yet: things
+    /// sink to the bottom.
+    /// </summary>
+    void CreateWater(PlanToWorld planToWorld)
+    {
+        if (!Plan.HasWater)
+            return;
+
+        float h = Plan.WaterHeight, x = planToWorld.SizeX, z = planToWorld.SizeZ;
+        var mesh = Track(new Mesh { name = "Water" });
+        mesh.vertices = new[] { new Vector3(0f, h, 0f), new Vector3(x, h, 0f), new Vector3(0f, h, z), new Vector3(x, h, z) };
+        mesh.uv = new[] { new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 1f), new Vector2(1f, 1f) };
+        mesh.triangles = new[] { 0, 2, 1, 2, 3, 1 };        // clockwise seen from above: faces up
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+
+        var go = new GameObject("Water", typeof(MeshFilter), typeof(MeshRenderer));
+        go.transform.SetParent(root.transform, false);
+        go.GetComponent<MeshFilter>().sharedMesh = mesh;
+        go.GetComponent<MeshRenderer>().sharedMaterial = region.waterMaterial != null ? region.waterMaterial : PlainWater();
+    }
+
+    /// <summary>A dark, glossy stand-in until the region has a water material.</summary>
+    Material PlainWater()
+    {
+        var shader = Shader.Find("Universal Render Pipeline/Lit");
+        if (shader == null) shader = Shader.Find("Standard");
+
+        var material = Track(new Material(shader) { name = "Plain Water", color = DefaultWater });
+        material.SetFloat("_Smoothness", 0.9f);
+        return material;
     }
 
     /// <summary>

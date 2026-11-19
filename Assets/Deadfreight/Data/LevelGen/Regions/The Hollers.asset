@@ -1,0 +1,53 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c7620f35ba422974dbf0f55982579097, type: 3}
+  m_Name: The Hollers
+  m_EditorClassIdentifier: Assembly-CSharp::RegionProfile
+  notes: 'Appalachian ridges and hollows. Steep: roads follow the hollows and switch back up the ridges.'
+  relief: 240
+  hillScale: 80
+  flatness: 1.1
+  warp: 28
+  landform: {fileID: 11400000, guid: 1d461cd247f276c4993660f9d2cbb967, type: 2}
+  waterCover: 0
+  waterLevel: 0.15
+  waterMaterial: {fileID: 0}
+  zones:
+  - name: Bald
+    previewColor: {r: 0.70980394, g: 0.6784314, b: 0.4862745, a: 1}
+    minHeight: 0.78
+    maxHeight: 1
+    minSlope: 0
+    maxSlope: 0.3
+    groundLayer: {fileID: 0}
+  - name: Laurel thicket
+    previewColor: {r: 0.24313726, g: 0.3529412, b: 0.20784314, a: 1}
+    minHeight: 0
+    maxHeight: 1
+    minSlope: 0.3
+    maxSlope: 1
+    groundLayer: {fileID: 0}
+  - name: Hollow
+    previewColor: {r: 0.18431373, g: 0.2901961, b: 0.22745098, a: 1}
+    minHeight: 0
+    maxHeight: 0.3
+    minSlope: 0
+    maxSlope: 1
+    groundLayer: {fileID: 0}
+  - name: Hardwood slope
+    previewColor: {r: 0.41568628, g: 0.47843137, b: 0.2509804, a: 1}
+    minHeight: 0
+    maxHeight: 1
+    minSlope: 0
+    maxSlope: 1
+    groundLayer: {fileID: 0}
+  dayNight: {fileID: 0}

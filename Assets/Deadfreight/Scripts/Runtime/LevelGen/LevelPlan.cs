@@ -18,6 +18,7 @@ public sealed class LevelPlan
     public readonly float[] GroundHeight;       // metres above the lowest ground (0 to Relief)
     public readonly float[] Slope;              // rise over run
     public readonly byte[] Zone;                // index into Region.zones
+    public float WaterHeight = -1f;             // metres: ground below it is under water. Negative = no water.
 
     /// <summary>Why generation stopped early, or null if it finished.</summary>
     public string Failure;
@@ -32,6 +33,9 @@ public sealed class LevelPlan
         Slope = new float[count];
         Zone = new byte[count];
     }
+
+    public bool HasWater => WaterHeight >= 0f;
+    public bool IsWater(int index) => GroundHeight[index] < WaterHeight;
 
     public int Index(Vector2Int cell) => cell.y * CellsX + cell.x;
     public Vector2Int CellAt(int index) => new(index % CellsX, index / CellsX);

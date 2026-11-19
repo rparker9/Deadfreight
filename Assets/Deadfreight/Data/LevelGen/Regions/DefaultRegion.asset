@@ -16,7 +16,11 @@ MonoBehaviour:
   relief: 120
   hillScale: 70
   flatness: 1.4
+  warp: 0
   landform: {fileID: 0}
+  waterCover: 0
+  waterLevel: 0.15
+  waterMaterial: {fileID: 0}
   zones:
   - name: Steep
     previewColor: {r: 0.55, g: 0.5, b: 0.45, a: 1}

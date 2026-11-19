@@ -3,7 +3,7 @@
 /// <summary>
 /// Makes a LevelPlan from a seed, the shared PlanSettings and the level's region, in stages,
 /// each in its own LevelGenerator.*.cs file:
-///   Land    base hills, the region's landform, slope
+///   Land    warped base hills, the region's landform, the water line, slope
 ///   Zones   which of the region's zones each cell is
 /// </summary>
 public sealed partial class LevelGenerator

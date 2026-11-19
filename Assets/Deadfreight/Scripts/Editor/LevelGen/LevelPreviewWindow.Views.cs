@@ -17,6 +17,7 @@ public sealed partial class LevelPreviewWindow
 {
     const float SlopeFullRed = 0.25f;   // rise over run drawn full red in the Slope view
     const float ContourDarken = 0.45f;  // how much a contour line darkens the cell under it
+    static readonly Color WaterColor = new(0.17f, 0.33f, 0.38f);
     const float ShadeExaggeration = 3f; // vertical exaggeration for hill shading, so gentle land still reads
 
     // ---------- land ----------
@@ -28,9 +29,16 @@ public sealed partial class LevelPreviewWindow
         {
             LandView.Height => Gray(0.08f + 0.9f * t),
             LandView.Slope => Ramp(plan.Slope[i] / SlopeFullRed),
-            LandView.Zones => ZoneColor(i) * Shade(i),
-            _ => HeightTint(t) * Shade(i),
+            LandView.Zones => plan.IsWater(i) ? Water(i) : ZoneColor(i) * Shade(i),
+            _ => plan.IsWater(i) ? Water(i) : HeightTint(t) * Shade(i),
         };
+    }
+
+    /// <summary>Water, a little darker the deeper it is.</summary>
+    Color Water(int i)
+    {
+        float depth01 = (plan.WaterHeight - plan.GroundHeight[i]) / Mathf.Max(1f, plan.WaterHeight);
+        return WaterColor * (1f - 0.35f * depth01);
     }
 
     /// <summary>The cell's zone's preview colour (gray for a region with no zones).</summary>
@@ -153,6 +161,8 @@ public sealed partial class LevelPreviewWindow
             $"Ground {plan.GroundHeight[i]:0} m · slope {plan.Slope[i] * 100f:0}%",
             plan.Region.zones.Count > 0 ? $"Zone: {plan.Region.zones[plan.Zone[i]].name}" : "No zones",
         };
+        if (plan.IsWater(i))
+            lines.Add($"Under water, {plan.WaterHeight - plan.GroundHeight[i]:0.#} m deep");
         return string.Join("\n", lines);
     }
 }

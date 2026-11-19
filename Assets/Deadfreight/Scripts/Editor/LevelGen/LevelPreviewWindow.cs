@@ -12,7 +12,7 @@ public sealed partial class LevelPreviewWindow : EditorWindow
 {
     const float PanelWidth = 320f;
     const string DefaultSettingsPath = "Assets/Deadfreight/Data/LevelGen/PlanSettings.asset";
-    const string DefaultRegionPath = "Assets/Deadfreight/Data/Regions/Region.asset";
+    const string DefaultRegionPath = "Assets/Deadfreight/Data/LevelGen/Regions/Region.asset";
 
     [SerializeField] PlanSettings settings;
     [SerializeField] RegionProfile region;
@@ -249,26 +249,13 @@ public sealed partial class LevelPreviewWindow : EditorWindow
 
     void CreateDefaultSettings()
     {
-        settings = CreateAsset<PlanSettings>("LevelGen", DefaultSettingsPath);
+        settings = LevelAssets.Create<PlanSettings>(DefaultSettingsPath);
         Regenerate();
     }
 
     void CreateDefaultRegion()
     {
-        region = CreateAsset<RegionProfile>("Regions", DefaultRegionPath);
+        region = LevelAssets.Create<RegionProfile>(DefaultRegionPath);
         Regenerate();
-    }
-
-    /// <summary>A new asset at <paramref name="path"/> (numbered if taken), making its folder under Data if needed.</summary>
-    static T CreateAsset<T>(string folder, string path) where T : ScriptableObject
-    {
-        const string parent = "Assets/Deadfreight/Data";
-        if (!AssetDatabase.IsValidFolder($"{parent}/{folder}"))
-            AssetDatabase.CreateFolder(parent, folder);
-
-        var asset = CreateInstance<T>();
-        AssetDatabase.CreateAsset(asset, AssetDatabase.GenerateUniqueAssetPath(path));
-        AssetDatabase.SaveAssets();
-        return asset;
     }
 }
