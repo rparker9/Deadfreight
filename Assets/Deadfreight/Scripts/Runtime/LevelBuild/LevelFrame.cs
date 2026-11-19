@@ -1,19 +1,19 @@
-// Scripts/Runtime/RegionBuild/RegionFrame.cs
+// Scripts/Runtime/LevelBuild/LevelFrame.cs
 using UnityEngine;
 
 /// <summary>
-/// Converts between region grid cells and world metres. Each cell's value is treated as a
+/// Converts between level grid cells and world metres. Each cell's value is treated as a
 /// sample at a grid point, so the world spans (width - 1) × (height - 1) cells.
 ///
-/// The grid's y runs south and the world's z runs north, so from above the built region looks
+/// The grid's y runs south and the world's z runs north, so from above the built level looks
 /// like the preview window. World positions are passed as Vector2 (x, z).
 /// </summary>
-public readonly struct RegionFrame
+public readonly struct LevelFrame
 {
     public readonly int Width, Height;
     public readonly float CellSize;
 
-    public RegionFrame(RegionMap map)
+    public LevelFrame(LevelLayout map)
     {
         Width = map.Width;
         Height = map.Height;

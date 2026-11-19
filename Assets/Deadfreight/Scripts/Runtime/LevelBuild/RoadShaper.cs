@@ -1,4 +1,4 @@
-// Scripts/Runtime/RegionBuild/RoadShaper.cs
+// Scripts/Runtime/LevelBuild/RoadShaper.cs
 using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
@@ -19,7 +19,7 @@ public sealed class RoadPath
 ///   1. Simplify: drop cell corners that sit close to a straight line (the plan zigzags in 50 m steps).
 ///   2. Smooth: a spline through what's left. Ends that join an earlier road snap onto it.
 ///   3. Sample: points every sampleSpacing metres along the spline.
-///   4. Profile: the plan's road heights (RegionGenerator.RoadHeights), read along the line
+///   4. Profile: the plan's road heights (LevelGenerator.RoadHeights), read along the line
 ///      between its cells, lightly smoothed so the 50 m steps don't show, and held to the plan's
 ///      maxGrade. Ends that join an earlier road take its height.
 ///   5. Press: flatten the ground to the road across its width, blending back over the shoulder.
@@ -30,9 +30,9 @@ public sealed class RoadPath
 public sealed class RoadShaper
 {
     readonly HeightField field;
-    readonly RegionFrame frame;
-    readonly RegionBuildSettings settings;
-    readonly RegionMap map;
+    readonly LevelFrame frame;
+    readonly LevelBuildSettings settings;
+    readonly LevelLayout map;
     readonly float maxGrade;            // the plan's
     readonly List<RoadPath> built = new();
 
@@ -43,7 +43,7 @@ public sealed class RoadShaper
 
     const float SmoothingLength = 20f;  // metres: just enough to round off the plan's cell-to-cell corners
 
-    public RoadShaper(HeightField field, RegionFrame frame, RegionMap map, RegionBuildSettings settings, float maxGrade)
+    public RoadShaper(HeightField field, LevelFrame frame, LevelLayout map, LevelBuildSettings settings, float maxGrade)
     {
         this.field = field;
         this.frame = frame;
@@ -200,7 +200,7 @@ public sealed class RoadShaper
             float d = nearestDistance[r, c];
             if (!field.IsRoadCore(c, r))
             {
-                float weight = 1f - RegionMath.SmoothStep(core, reach, d);
+                float weight = 1f - GridMath.SmoothStep(core, reach, d);
                 field.Heights[r, c] = Mathf.Lerp(field.Heights[r, c], nearestHeight[r, c], weight);
                 if (d <= core) field.MarkRoadCore(c, r);
             }

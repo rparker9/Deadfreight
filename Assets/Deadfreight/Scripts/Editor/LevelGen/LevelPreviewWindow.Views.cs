@@ -1,4 +1,4 @@
-// Scripts/Editor/RegionGen/RegionPreviewWindow.Views.cs
+// Scripts/Editor/LevelGen/LevelPreviewWindow.Views.cs
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
@@ -23,8 +23,8 @@ public enum RoadView
     Hidden,         // no roads, to see the land underneath
 }
 
-// The colours and legends for each view. The window itself is in RegionPreviewWindow.cs.
-public sealed partial class RegionPreviewWindow
+// The colours and legends for each view. The window itself is in LevelPreviewWindow.cs.
+public sealed partial class LevelPreviewWindow
 {
     static readonly Color RoadColour = new(0.82f, 0.78f, 0.68f);
     static readonly Color MainRoadColour = new(0.95f, 0.9f, 0.75f);
@@ -97,7 +97,7 @@ public sealed partial class RegionPreviewWindow
     {
         RoadView.Class => map.MainRoad[i] ? MainRoadColour : OnAnyRoute(i) ? BackRoadColour : LaneColour,
         RoadView.Steepness => Ramp(map.Slope[i] / (settings.steepSlope * 2f)),
-        RoadView.Speed => Ramp(1f - RegionGenerator.SpeedMph(map, settings, i) / settings.mainRoadSpeed),
+        RoadView.Speed => Ramp(1f - LevelGenerator.SpeedMph(map, settings, i) / settings.mainRoadSpeed),
         RoadView.CutFill => CutFillColour(map.RoadCut[i]),
         _ => RoadColour,
     };
@@ -226,7 +226,7 @@ public sealed partial class RegionPreviewWindow
         {
             string kind = map.MainRoad[i] ? "Main road" : OnAnyRoute(i) ? "Back road" : "Lane";
             bool steep = map.ConditionAt(i, settings.steepSlope) == RoadCondition.Steep;
-            lines.Add($"{kind} · {RegionGenerator.SpeedMph(map, settings, i):0} mph" + (steep ? " · steep" : ""));
+            lines.Add($"{kind} · {LevelGenerator.SpeedMph(map, settings, i):0} mph" + (steep ? " · steep" : ""));
             if (!float.IsNaN(map.RoadHeight[i]))
             {
                 float cut = map.RoadCut[i];

@@ -1,14 +1,14 @@
-// Scripts/Runtime/RegionGen/RegionGenerator.cs
+// Scripts/Runtime/LevelGen/LevelGenerator.cs
 using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Generates a region map with land, roads, and stops. 
+/// Generates a level layout with land, roads, and stops. 
 /// </summary>
-public sealed partial class RegionGenerator
+public sealed partial class LevelGenerator
 {
-    readonly RegionMap map;
-    readonly RegionSettings settings;
+    readonly LevelLayout map;
+    readonly LevelSettings settings;
     readonly System.Random rng;
     readonly int width, height, cellCount;
 
@@ -16,18 +16,18 @@ public sealed partial class RegionGenerator
     float[] baseCost;       // cost of building road on each cell, from the land alone
     float trunkSeconds;     // driving time of the trunk, added to every route's time
 
-    public static RegionMap Generate(int seed, RegionSettings settings)
+    public static LevelLayout Generate(int seed, LevelSettings settings)
     {
-        var generator = new RegionGenerator(seed, settings);
+        var generator = new LevelGenerator(seed, settings);
         generator.Run();
         return generator.map;
     }
 
-    RegionGenerator(int seed, RegionSettings settings)
+    LevelGenerator(int seed, LevelSettings settings)
     {
         this.settings = settings;
         rng = new System.Random(seed);
-        map = new RegionMap(settings.width, settings.height, settings.cellSize)
+        map = new LevelLayout(settings.width, settings.height, settings.cellSize)
         {
             Relief = settings.relief,
             PadRadius = settings.padRadius,

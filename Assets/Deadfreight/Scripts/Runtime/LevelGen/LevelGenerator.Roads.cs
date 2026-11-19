@@ -1,9 +1,9 @@
-// Scripts/Runtime/RegionGen/RegionGenerator.Roads.cs
+// Scripts/Runtime/LevelGen/LevelGenerator.Roads.cs
 using System.Collections.Generic;
 using UnityEngine;
 
 // Stage 3: roads. Entry → trunk → fork → main road or an alternate → site; lanes to the stops.
-public sealed partial class RegionGenerator
+public sealed partial class LevelGenerator
 {
     const float LaneOnRoadCost = 0.01f;     // lanes run along existing road almost for free
     const int ViaMargin = 8;                // cells a via keeps from the map edge

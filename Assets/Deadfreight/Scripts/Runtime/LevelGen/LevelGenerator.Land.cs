@@ -1,7 +1,7 @@
-// Scripts/Runtime/RegionGen/RegionGenerator.Land.cs
+// Scripts/Runtime/LevelGen/LevelGenerator.Land.cs
 using UnityEngine;
 
-public sealed partial class RegionGenerator
+public sealed partial class LevelGenerator
 {
     const int HillOctaves = 5;
 
@@ -16,7 +16,7 @@ public sealed partial class RegionGenerator
     void BuildBaseHeight()
     {
         var e = map.Elevation;
-        var raw = RegionNoise.Fbm(width, height, settings.hillScale, HillOctaves, rng);
+        var raw = GridNoise.Fbm(width, height, settings.hillScale, HillOctaves, rng);
         GridOps.Normalize(raw);
         for (int i = 0; i < cellCount; i++) e[i] = Mathf.Pow(raw[i], settings.flatness);
     }

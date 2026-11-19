@@ -1,11 +1,11 @@
-// Scripts/Runtime/RegionGen/RegionNoise.cs
+// Scripts/Runtime/LevelGen/GridNoise.cs
 using UnityEngine;
 
 /// <summary>
 /// Seeded gradient (Perlin-style) noise on a grid. Uses its own System.Random so the same
 /// seed always gives the same land, independent of UnityEngine.Random.
 /// </summary>
-public static class RegionNoise
+public static class GridNoise
 {
     /// <summary>Layered noise: each octave half the size and half the strength. Roughly -1..1.</summary>
     public static float[] Fbm(int w, int h, float scale, int octaves, System.Random rng)

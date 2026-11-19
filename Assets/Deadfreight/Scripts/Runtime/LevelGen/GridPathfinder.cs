@@ -1,4 +1,4 @@
-// Scripts/Runtime/RegionGen/GridPathfinder.cs
+// Scripts/Runtime/LevelGen/GridPathfinder.cs
 using System.Collections.Generic;
 using UnityEngine;
 

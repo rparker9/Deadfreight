@@ -1,9 +1,9 @@
-// Scripts/Runtime/RegionGen/RegionGenerator.Places.cs
+// Scripts/Runtime/LevelGen/LevelGenerator.Places.cs
 using System.Collections.Generic;
 using UnityEngine;
 
 // Stage 2: where the road comes in, where it is going, and what is along the way.
-public sealed partial class RegionGenerator
+public sealed partial class LevelGenerator
 {
     const int SiteMargin = 10;              // cells the site keeps from the map edge
     const int SiteTries = 5000;
@@ -45,17 +45,17 @@ public sealed partial class RegionGenerator
     }
 
     /// <summary>The best entry along the middle of one edge, or null if none can take a road.</summary>
-    RegionEntry BestEntryOn(MapEdge edge)
+    LevelEntry BestEntryOn(MapEdge edge)
     {
         int edgeLength = edge is MapEdge.West or MapEdge.East ? height : width;
         int from = (int)(edgeLength * (1f - settings.entrySpan) / 2f);
         int to = (int)(edgeLength * (1f + settings.entrySpan) / 2f);
 
-        RegionEntry best = null;
+        LevelEntry best = null;
         float bestScore = float.MaxValue;
         for (int t = from; t < to; t++)
         {
-            var candidate = new RegionEntry(EdgeCell(edge, t), edge);
+            var candidate = new LevelEntry(EdgeCell(edge, t), edge);
             if (!StubBuildable(candidate)) continue;
 
             float score = StubSlope(candidate)
@@ -80,14 +80,14 @@ public sealed partial class RegionGenerator
     };
 
     // The stub is the straight road in from the edge: cells 0..entryStub inclusive.
-    bool StubBuildable(RegionEntry entry)
+    bool StubBuildable(LevelEntry entry)
     {
         for (int k = 0; k <= settings.entryStub; k++)
             if (!Buildable(entry.StubCell(k))) return false;
         return true;
     }
 
-    float StubSlope(RegionEntry entry)
+    float StubSlope(LevelEntry entry)
     {
         float sum = 0f;
         for (int k = 0; k <= settings.entryStub; k++) sum += map.Slope[map.Index(entry.StubCell(k))];

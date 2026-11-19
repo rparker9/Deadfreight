@@ -1,8 +1,8 @@
-// Scripts/Runtime/RegionGen/RegionMath.cs
+// Scripts/Runtime/LevelGen/GridMath.cs
 using UnityEngine;
 
-/// <summary>Small maths helpers shared by region generation and building.</summary>
-public static class RegionMath
+/// <summary>Small maths helpers shared by level generation and building.</summary>
+public static class GridMath
 {
     /// <summary>0 at or below edge0, 1 at or above edge1, an S-curve between (like shader smoothstep).</summary>
     public static float SmoothStep(float edge0, float edge1, float x)

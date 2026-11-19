@@ -1,20 +1,20 @@
-// Scripts/Editor/RegionGen/RegionPreviewWindow.cs
+// Scripts/Editor/LevelGen/LevelPreviewWindow.cs
 using System.Collections.Generic;
 using System.Diagnostics;
 using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// Top-down preview of a generated region: land, roads and places; the entry, trunk and fork;
+/// Top-down preview of a generated level: land, roads and places; the entry, trunk and fork;
 /// and each route from entry to site with its length, driving time and share of steep grades. Change the seed or edit the settings asset and it regenerates.
 ///
 /// The land and the roads can each be coloured several ways (LandView, RoadView; colours and
-/// legends in RegionPreviewWindow.Views.cs), and hovering a cell shows everything about it.
+/// legends in LevelPreviewWindow.Views.cs), and hovering a cell shows everything about it.
 /// </summary>
-public sealed partial class RegionPreviewWindow : EditorWindow
+public sealed partial class LevelPreviewWindow : EditorWindow
 {
     const float PanelWidth = 320f;
-    const string DefaultSettingsPath = "Assets/Deadfreight/Data/RegionGen/RegionSettings.asset";
+    const string DefaultSettingsPath = "Assets/Deadfreight/Data/LevelGen/LevelSettings.asset";
 
     static readonly Color EntryColor = new(0.3f, 0.9f, 0.3f);
     static readonly Color SiteColor = new(0.95f, 0.3f, 0.3f);
@@ -25,7 +25,7 @@ public sealed partial class RegionPreviewWindow : EditorWindow
         new(0.70f, 0.47f, 1.00f), new(0.40f, 0.95f, 0.50f), new(1.00f, 0.55f, 0.80f), new(0.95f, 0.95f, 0.95f),
     };
 
-    [SerializeField] RegionSettings settings;
+    [SerializeField] LevelSettings settings;
     [SerializeField] int seed = 1;
     [SerializeField] bool showPlaceLabels = true;
     [SerializeField] bool showLanes = true;
@@ -37,7 +37,7 @@ public sealed partial class RegionPreviewWindow : EditorWindow
     [SerializeField] float contourInterval = 10f;
     [SerializeField] bool smoothPixels;
 
-    RegionMap map;
+    LevelLayout map;
     // Worked out once per generation, for the views.
     float maxRoadCost = 2f;
 
@@ -50,8 +50,8 @@ public sealed partial class RegionPreviewWindow : EditorWindow
     string settingsSnapshot;
     Vector2 scroll;
 
-    [MenuItem("Tools/Deadfreight/Region Preview")]
-    static void Open() => GetWindow<RegionPreviewWindow>("Region Preview");
+    [MenuItem("Tools/Deadfreight/Level Preview")]
+    static void Open() => GetWindow<LevelPreviewWindow>("Level Preview");
 
     void OnEnable()
     {
@@ -82,7 +82,7 @@ public sealed partial class RegionPreviewWindow : EditorWindow
         if (settings == null) return;
 
         var timer = Stopwatch.StartNew();
-        map = RegionGenerator.Generate(seed, settings);
+        map = LevelGenerator.Generate(seed, settings);
         generateMs = timer.ElapsedMilliseconds;
 
         while (routeVisible.Count < map.Routes.Count) routeVisible.Add(true);
@@ -170,10 +170,10 @@ public sealed partial class RegionPreviewWindow : EditorWindow
 
     void DrawPanel()
     {
-        EditorGUILayout.LabelField("Region", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField("Level", EditorStyles.boldLabel);
 
         EditorGUI.BeginChangeCheck();
-        settings = (RegionSettings)EditorGUILayout.ObjectField("Settings", settings, typeof(RegionSettings), false);
+        settings = (LevelSettings)EditorGUILayout.ObjectField("Settings", settings, typeof(LevelSettings), false);
         using (new EditorGUILayout.HorizontalScope())
         {
             seed = EditorGUILayout.IntField("Seed", seed);
@@ -212,7 +212,7 @@ public sealed partial class RegionPreviewWindow : EditorWindow
 
         if (settings == null)
         {
-            EditorGUILayout.HelpBox("Assign Region Settings to start.", MessageType.Info);
+            EditorGUILayout.HelpBox("Assign Level Settings to start.", MessageType.Info);
             if (GUILayout.Button("Create default settings")) CreateDefaultSettings();
             return;
         }
@@ -425,10 +425,10 @@ public sealed partial class RegionPreviewWindow : EditorWindow
     void CreateDefaultSettings()
     {
         const string parent = "Assets/Deadfreight/Data";
-        if (!AssetDatabase.IsValidFolder(parent + "/RegionGen"))
-            AssetDatabase.CreateFolder(parent, "RegionGen");
+        if (!AssetDatabase.IsValidFolder(parent + "/LevelGen"))
+            AssetDatabase.CreateFolder(parent, "LevelGen");
 
-        var asset = CreateInstance<RegionSettings>();
+        var asset = CreateInstance<LevelSettings>();
         AssetDatabase.CreateAsset(asset, AssetDatabase.GenerateUniqueAssetPath(DefaultSettingsPath));
         AssetDatabase.SaveAssets();
         settings = asset;

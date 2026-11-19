@@ -1,4 +1,4 @@
-// Scripts/Runtime/RegionBuild/RoadNetwork.cs
+// Scripts/Runtime/LevelBuild/RoadNetwork.cs
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -25,7 +25,7 @@ public sealed class RoadSegment
 /// </summary>
 public static class RoadNetwork
 {
-    public static List<RoadSegment> Split(RegionMap map)
+    public static List<RoadSegment> Split(LevelLayout map)
     {
         var claimed = new HashSet<Vector2Int>();
         var segments = new List<RoadSegment>();

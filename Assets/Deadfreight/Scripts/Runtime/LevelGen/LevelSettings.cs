@@ -1,18 +1,18 @@
-// Scripts/Runtime/RegionGen/RegionSettings.cs
+// Scripts/Runtime/LevelGen/LevelSettings.cs
 using UnityEngine;
 
 /// <summary>
-/// Everything that shapes a generated region, in the order the generator uses it: the land,
+/// Everything that shapes a generated level, in the order the generator uses it: the land,
 /// where the road comes in, the site and the stops, then how roads are routed and how fast
-/// they are. One asset per region type.
+/// they are. One asset per level type.
 ///
 /// Distances are in grid cells unless a unit is shown (one cell = cellSize metres). Heights
-/// marked 0-1 are on the plan's own scale: 0 the lowest ground in the region, 1 the highest.
+/// marked 0-1 are on the plan's own scale: 0 the lowest ground in the level, 1 the highest.
 /// Placeholder values, tuned so the main road takes ~7-10 min one way and alternates
 /// 15-22.5 min (trunk included).
 /// </summary>
-[CreateAssetMenu(fileName = "RegionSettings", menuName = "Region Gen/Region Settings")]
-public sealed class RegionSettings : ScriptableObject
+[CreateAssetMenu(fileName = "LevelSettings", menuName = "Level Gen/Level Settings")]
+public sealed class LevelSettings : ScriptableObject
 {
     // ---------- the map ----------
 
@@ -31,12 +31,12 @@ public sealed class RegionSettings : ScriptableObject
     public float hillScale = 70f;
     [Range(0.5f, 3f), Tooltip("1 = as the noise makes it. Above 1 flattens the lowland and sharpens the peaks.")]
     public float flatness = 1.4f;
-    [Unit("m"), Tooltip("Height from the lowest to the highest ground in the region.")]
+    [Unit("m"), Tooltip("Height from the lowest to the highest ground in the level.")]
     public float relief = 120f;
 
     // ---------- the route ----------
 
-    [Header("Entry (the road into the region)")]
+    [Header("Entry (the road into the level)")]
     [Range(0.1f, 1f), Tooltip("The entry is picked from this middle share of an edge, keeping it out of corners.")]
     public float entrySpan = 0.6f;
     [Range(1, 20), Tooltip("Cells of straight road leading in from the edge, so it reads as coming from off the map.")]

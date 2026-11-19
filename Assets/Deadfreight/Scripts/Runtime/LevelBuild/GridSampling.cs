@@ -1,8 +1,8 @@
-// Scripts/Runtime/RegionBuild/GridSampling.cs
+// Scripts/Runtime/LevelBuild/GridSampling.cs
 using UnityEngine;
 
 /// <summary>
-/// Smooth lookups into the region's per-cell layers at fractional cell positions, so the
+/// Smooth lookups into the level's per-cell layers at fractional cell positions, so the
 /// 50 m grid can be read at any point without its squares showing. Positions outside the
 /// grid read the nearest edge cell. Bilinear lookups went with the land features; add one
 /// back here when a feature needs it.

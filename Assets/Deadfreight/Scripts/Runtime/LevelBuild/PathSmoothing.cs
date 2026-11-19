@@ -1,4 +1,4 @@
-// Scripts/Runtime/RegionBuild/PathSmoothing.cs
+// Scripts/Runtime/LevelBuild/PathSmoothing.cs
 using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;

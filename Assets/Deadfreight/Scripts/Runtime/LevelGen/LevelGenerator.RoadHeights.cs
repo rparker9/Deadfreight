@@ -1,10 +1,10 @@
-// Scripts/Runtime/RegionGen/RegionGenerator.RoadHeights.cs
+// Scripts/Runtime/LevelGen/LevelGenerator.RoadHeights.cs
 using System.Collections.Generic;
 using UnityEngine;
 
 // Stage 3, last: the height every road is built at, and the pad under every place. Decided here
 // so the 3D build only presses roads to it, and the cuttings and embankments are part of the plan.
-public sealed partial class RegionGenerator
+public sealed partial class LevelGenerator
 {
     const int RoadSmoothingPasses = 3;
     const int RoadGradePasses = 2;

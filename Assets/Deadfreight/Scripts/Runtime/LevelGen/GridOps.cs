@@ -1,8 +1,8 @@
-// Scripts/Runtime/RegionGen/GridOps.cs
+// Scripts/Runtime/LevelGen/GridOps.cs
 using UnityEngine;
 
 /// <summary>
-/// Whole-grid operations on the region's layers (index = y * width + x).
+/// Whole-grid operations on the level's layers (index = y * width + x).
 /// </summary>
 public static class GridOps
 {

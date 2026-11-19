@@ -1,4 +1,4 @@
-// Scripts/Runtime/RegionGen/RegionMap.cs
+// Scripts/Runtime/LevelGen/LevelLayout.cs
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -20,15 +20,15 @@ public sealed class Place
 }
 
 /// <summary>
-/// Where the road comes into the region, on the map edge. The crew drives in here
+/// Where the road comes into the level, on the map edge. The crew drives in here
 /// and must leave the same way.
 /// </summary>
-public sealed class RegionEntry
+public sealed class LevelEntry
 {
     public readonly Vector2Int Cell;    // on the edge itself
     public readonly MapEdge Edge;
 
-    public RegionEntry(Vector2Int cell, MapEdge edge)
+    public LevelEntry(Vector2Int cell, MapEdge edge)
     {
         Cell = cell;
         Edge = edge;
@@ -68,14 +68,14 @@ public sealed class Route
 }
 
 /// <summary>
-/// A generated region on a grid (x right, y down; index = y * Width + x). Cells hold the
+/// A generated level on a grid (x right, y down; index = y * Width + x). Cells hold the
 /// land's height and slope; the entry, places and roads sit on top. Plain data for previews,
 /// the crew's road map, and the 3D build.
 ///
 /// Road layout: Entry → Trunk → Fork → Routes → Site. Every route shares the trunk, so a
 /// trip is the trunk, one route in, any route back, and the trunk out.
 /// </summary>
-public sealed class RegionMap
+public sealed class LevelLayout
 {
     public readonly int Width, Height;
     public readonly float CellSize;
@@ -96,7 +96,7 @@ public sealed class RegionMap
 
     public float[] RoadCost;             // cost of building road on each cell, from the land alone (what the pathfinder used)
 
-    public RegionEntry Entry;
+    public LevelEntry Entry;
     public Place Site;
     public Vector2Int Fork;              // end of the trunk, where the routes split
     public Route Trunk;                  // entry to fork, shared by every route
@@ -110,7 +110,7 @@ public sealed class RegionMap
     /// <summary>Alternates thrown away for falling outside the time window (for tuning).</summary>
     public int RejectedAlternates;
 
-    public RegionMap(int width, int height, float cellSize)
+    public LevelLayout(int width, int height, float cellSize)
     {
         Width = width;
         Height = height;

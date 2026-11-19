@@ -1,20 +1,20 @@
-// Scripts/Editor/RegionBuild/RegionBuilderEditor.cs
+// Scripts/Editor/LevelBuild/LevelBuilderEditor.cs
 using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// Build / Clear buttons for RegionBuilder, and clean-up of edit-mode builds before Play (they
+/// Build / Clear buttons for LevelBuilder, and clean-up of edit-mode builds before Play (they
 /// aren't part of the scene, so Play would otherwise show them alongside its own build).
 /// </summary>
-[CustomEditor(typeof(RegionBuilder))]
-public sealed class RegionBuilderEditor : Editor
+[CustomEditor(typeof(LevelBuilder))]
+public sealed class LevelBuilderEditor : Editor
 {
-    const string DefaultBuildSettingsPath = "Assets/Deadfreight/Data/RegionGen/BuildSettings.asset";
+    const string DefaultBuildSettingsPath = "Assets/Deadfreight/Data/LevelGen/LevelBuildSettings.asset";
 
     public override void OnInspectorGUI()
     {
         DrawDefaultInspector();
-        var builder = (RegionBuilder)target;
+        var builder = (LevelBuilder)target;
 
         if (serializedObject.FindProperty("buildSettings").objectReferenceValue == null &&
             GUILayout.Button("Create default build settings"))
@@ -28,7 +28,7 @@ public sealed class RegionBuilderEditor : Editor
             if (GUILayout.Button("Build")) builder.Build();
             if (GUILayout.Button("Random seed + Build"))
             {
-                Undo.RecordObject(builder, "Random region seed");
+                Undo.RecordObject(builder, "Random level seed");
                 builder.Seed = Random.Range(0, int.MaxValue);
                 builder.Build();
             }
@@ -52,7 +52,7 @@ public sealed class RegionBuilderEditor : Editor
 
     void CreateDefaultBuildSettings()
     {
-        var asset = CreateInstance<RegionBuildSettings>();
+        var asset = CreateInstance<LevelBuildSettings>();
         AssetDatabase.CreateAsset(asset, AssetDatabase.GenerateUniqueAssetPath(DefaultBuildSettingsPath));
         AssetDatabase.SaveAssets();
         serializedObject.FindProperty("buildSettings").objectReferenceValue = asset;
@@ -65,7 +65,7 @@ public sealed class RegionBuilderEditor : Editor
         EditorApplication.playModeStateChanged += state =>
         {
             if (state != PlayModeStateChange.ExitingEditMode) return;
-            foreach (var builder in FindObjectsByType<RegionBuilder>())
+            foreach (var builder in FindObjectsByType<LevelBuilder>())
                 builder.Clear();
         };
     }

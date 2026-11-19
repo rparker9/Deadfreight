@@ -1,8 +1,8 @@
-// Scripts/Runtime/RegionBuild/HeightField.cs
+// Scripts/Runtime/LevelBuild/HeightField.cs
 using UnityEngine;
 
 /// <summary>
-/// World heights in metres on a square grid of samples covering the region. It is filled from
+/// World heights in metres on a square grid of samples covering the level. It is filled from
 /// the plan, the plan's roads and pads are pressed into it, and then it becomes the Unity terrain. Arrays are [row, column]: rows run along z, columns along x (Unity's order).
 /// </summary>
 public sealed class HeightField
@@ -35,7 +35,7 @@ public sealed class HeightField
     // ---------- building from the plan ----------
 
     /// <summary>The plan's heights in metres, smoothly (bicubic) between cell centres, which it passes through exactly.</summary>
-    public static HeightField FromRegion(RegionMap map, RegionFrame frame, RegionBuildSettings build)
+    public static HeightField FromLayout(LevelLayout map, LevelFrame frame, LevelBuildSettings build)
     {
         var field = new HeightField(build.heightmapResolution, frame.SizeX, frame.SizeZ);
 
@@ -90,7 +90,7 @@ public sealed class HeightField
         {
             if (roadCore[r, c]) continue;
             float d = Vector2.Distance(SampleToWorld(c, r), centre);
-            float weight = 1f - RegionMath.SmoothStep(radius, radius + blend, d);
+            float weight = 1f - GridMath.SmoothStep(radius, radius + blend, d);
             Heights[r, c] = Mathf.Lerp(Heights[r, c], height, weight);
         }
     }

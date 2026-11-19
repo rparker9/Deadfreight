@@ -1,4 +1,4 @@
-// Scripts/Runtime/RegionBuild/RegionBuildSettings.cs
+// Scripts/Runtime/LevelBuild/LevelBuildSettings.cs
 using System;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -18,18 +18,18 @@ public struct SurfaceFeel
 }
 
 /// <summary>
-/// How the 3D region is drawn from the generated plan. RegionSettings decides the land, the
+/// How the 3D level is drawn from the generated plan. LevelSettings decides the land, the
 /// roads and their heights, and the pads; these only control resolution, how roads are laid
 /// into the ground, looks and ground feel, in build order. Materials and the ground layer are
 /// optional; plain colours are used without them. Distances are in metres.
 /// </summary>
-[CreateAssetMenu(fileName = "RegionBuildSettings", menuName = "Region Gen/Region Build Settings")]
-public sealed class RegionBuildSettings : ScriptableObject
+[CreateAssetMenu(fileName = "LevelBuildSettings", menuName = "Level Gen/Level Build Settings")]
+public sealed class LevelBuildSettings : ScriptableObject
 {
     static readonly int[] HeightmapResolutions = { 513, 1025, 2049, 4097 };
 
     [Header("Terrain")]
-    [Tooltip("Heightmap samples per side: 513, 1025, 2049 or 4097. 2049 is about 4 m between samples on an 8 km region.")]
+    [Tooltip("Heightmap samples per side: 513, 1025, 2049 or 4097. 2049 is about 4 m between samples on an 8 km level.")]
     public int heightmapResolution = 2049;
 
     [Header("Roads: width")]

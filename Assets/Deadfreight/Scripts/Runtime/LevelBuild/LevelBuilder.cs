@@ -1,30 +1,31 @@
-// Scripts/Runtime/RegionBuild/RegionBuilder.cs
+// Scripts/Runtime/LevelBuild/LevelBuilder.cs
 using System.Collections.Generic;
 using System.Diagnostics;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.Splines;
 using Debug = UnityEngine.Debug;
 
 /// <summary>
-/// Builds a region in the scene, with terrain, roads, and buildings.
+/// Builds a level in the scene, with terrain, roads, and buildings.
 /// </summary>
-public sealed class RegionBuilder : MonoBehaviour
+public sealed class LevelBuilder : MonoBehaviour
 {
-    [SerializeField] RegionSettings regionSettings;
-    [SerializeField] RegionBuildSettings buildSettings;
+    [SerializeField, FormerlySerializedAs("regionSettings")] LevelSettings levelSettings;
+    [SerializeField] LevelBuildSettings buildSettings;
     [SerializeField] int seed = 1;
     [SerializeField] bool buildOnStart = true;
     [Tooltip("Optional: moved onto the road just inside the entry, facing inland (e.g. the wagon, for testing).")]
     [SerializeField] Transform placeAtEntry;
 
-    const string RootName = "Generated Region";
+    const string RootName = "Generated Level";
     const float EntrySpawnDistance = 15f;   // metres along the road from the map edge
     const float BuildingGap = 3f;           // metres between a road's edge and a building
 
     GameObject root;
     readonly List<Object> createdAssets = new();    // meshes, materials, terrain data: destroyed on Clear
 
-    public RegionMap Map { get; private set; }
+    public LevelLayout Map { get; private set; }
     public IReadOnlyList<RoadPath> Roads { get; private set; }
     public Pose EntryPose { get; private set; }
 
@@ -46,26 +47,26 @@ public sealed class RegionBuilder : MonoBehaviour
     public void Build()
     {
         Clear();
-        if (regionSettings == null || buildSettings == null)
+        if (levelSettings == null || buildSettings == null)
         {
-            Debug.LogWarning("RegionBuilder needs Region Settings and Region Build Settings.", this);
+            Debug.LogWarning("LevelBuilder needs Level Settings and Level Build Settings.", this);
             return;
         }
 
         var timer = Stopwatch.StartNew();
-        Map = RegionGenerator.Generate(seed, regionSettings);
+        Map = LevelGenerator.Generate(seed, levelSettings);
         if (Map.Failure != null)
         {
-            Debug.LogWarning($"Region {seed} not built: {Map.Failure}", this);
+            Debug.LogWarning($"Level {seed} not built: {Map.Failure}", this);
             return;
         }
 
         // 1. Heights.
-        var frame = new RegionFrame(Map);
-        var field = HeightField.FromRegion(Map, frame, buildSettings);
+        var frame = new LevelFrame(Map);
+        var field = HeightField.FromLayout(Map, frame, buildSettings);
 
         // 2. Roads, in priority order, each pressed in before the next is shaped, at the plan's heights.
-        var shaper = new RoadShaper(field, frame, Map, buildSettings, regionSettings.maxGrade);
+        var shaper = new RoadShaper(field, frame, Map, buildSettings, levelSettings.maxGrade);
         foreach (var segment in RoadNetwork.Split(Map))
         {
             var road = shaper.Shape(segment);
@@ -86,7 +87,7 @@ public sealed class RegionBuilder : MonoBehaviour
         PlaceEntry(shaper.Built[0]);
 
         if (!Application.isPlaying) HideFromScene();
-        Debug.Log($"Built region {seed} in {timer.ElapsedMilliseconds} ms: " +
+        Debug.Log($"Built level {seed} in {timer.ElapsedMilliseconds} ms: " +
                   $"{shaper.Built.Count} road segments, {Map.Places.Count} places.", this);
     }
 
@@ -108,7 +109,7 @@ public sealed class RegionBuilder : MonoBehaviour
     // ---------- scene objects ----------
 
     /// <summary>The terrain from the field's heights, covered in the one ground layer.</summary>
-    void CreateTerrain(RegionFrame frame, HeightField field)
+    void CreateTerrain(LevelFrame frame, HeightField field)
     {
         var heights = field.Normalized(out float bottom, out float span);
 
@@ -165,7 +166,7 @@ public sealed class RegionBuilder : MonoBehaviour
     }
 
     /// <summary>A box for each place, beside the nearest road and facing it, on the place's pad.</summary>
-    void CreatePlace(Place place, RegionFrame frame, HeightField field, RoadShaper shaper)
+    void CreatePlace(Place place, LevelFrame frame, HeightField field, RoadShaper shaper)
     {
         bool isSite = place.Kind == PlaceKind.Site;
         var size = isSite ? buildSettings.siteSize : buildSettings.buildingSize;
@@ -220,7 +221,7 @@ public sealed class RegionBuilder : MonoBehaviour
         var shader = Shader.Find("Universal Render Pipeline/Lit");
         if (shader == null)
         {
-            Debug.LogWarning("URP Lit shader not found; assign materials in Region Build Settings.", this);
+            Debug.LogWarning("URP Lit shader not found; assign materials in Level Build Settings.", this);
             shader = Shader.Find("Hidden/InternalErrorShader");
         }
         return Track(new Material(shader) { color = color });

@@ -1,9 +1,9 @@
-// Scripts/Runtime/RegionGen/RegionGenerator.Travel.cs
+// Scripts/Runtime/LevelGen/LevelGenerator.Travel.cs
 using System.Collections.Generic;
 using UnityEngine;
 
 // Stage 4: how fast each cell drives, and what each route adds up to.
-public sealed partial class RegionGenerator
+public sealed partial class LevelGenerator
 {
     const float MetresPerMile = 1609f;
     const float MetresPerSecondPerMph = 0.447f;
@@ -15,7 +15,7 @@ public sealed partial class RegionGenerator
     /// Driving speed on a cell. The main road and trunk are graded; everything else is a dirt back
     /// road. Steep ground slows either. Reads MainRoad, so it is only right once the main road exists.
     /// </summary>
-    public static float SpeedMph(RegionMap map, RegionSettings settings, int i)
+    public static float SpeedMph(LevelLayout map, LevelSettings settings, int i)
     {
         float mph = settings.mainRoadSpeed;
         if (!map.MainRoad[i]) mph *= settings.backRoadFactor;
