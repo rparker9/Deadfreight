@@ -26,6 +26,7 @@ public sealed class GridPathfinder
         stamp = new int[width * height];
     }
 
+    /// <summary> Finds a path from a to b, inclusive, or null if b can't be reached. </summary>
     /// <param name="cost">Cost of entering each cell; use a huge value for impassable cells.</param>
     /// <param name="heuristicWeight">Scales straight-line distance; below the cheapest cell cost keeps paths near-optimal.</param>
     /// <returns>Cells from a to b inclusive, or null if b can't be reached.</returns>

@@ -5,7 +5,7 @@ using UnityEngine;
 using UnityEngine.Splines;
 
 /// <summary>
-/// Turning a zigzag of 50 m plan cells into a smooth line, shared by roads and rivers:
+/// Turning a zigzag of 50 m plan cells into a smooth line, for roads:
 /// drop corners that sit close to a straight line, run a spline through what's left, then take
 /// evenly spaced points along it. Also a moving average for smoothing values along a line.
 /// </summary>

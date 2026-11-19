@@ -9,21 +9,17 @@ public sealed partial class RegionGenerator
     const float MetresPerSecondPerMph = 0.447f;
     const float DiagonalStep = 1.41421356f;
 
-    static readonly RoadCondition[] ConditionFlags =
-        { RoadCondition.Mud, RoadCondition.Ford, RoadCondition.Steep, RoadCondition.Forest, RoadCondition.Fog };
+    static readonly RoadCondition[] ConditionFlags = { RoadCondition.Steep };
 
     /// <summary>
     /// Driving speed on a cell. The main road and trunk are graded; everything else is a dirt back
-    /// road. Land conditions stack on top. Reads MainRoad, so it is only right once the main road exists.
+    /// road. Steep ground slows either. Reads MainRoad, so it is only right once the main road exists.
     /// </summary>
     public static float SpeedMph(RegionMap map, RegionSettings settings, int i)
     {
         float mph = settings.mainRoadSpeed;
         if (!map.MainRoad[i]) mph *= settings.backRoadFactor;
         if (map.Slope[i] > settings.steepSlope) mph *= settings.steepFactor;
-        if (map.Forest[i]) mph *= settings.forestFactor;
-        if (map.Marsh[i]) mph *= settings.mudFactor;
-        if (map.River[i]) mph *= settings.fordFactor;
         return mph;
     }
 

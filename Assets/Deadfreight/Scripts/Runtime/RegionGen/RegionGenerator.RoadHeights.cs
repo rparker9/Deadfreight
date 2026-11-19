@@ -12,9 +12,8 @@ public sealed partial class RegionGenerator
     /// <summary>
     /// Roads in priority order (main road with its trunk, then alternates, then lanes), the same
     /// order the 3D build lays them. Along each: the ground's height, averaged over
-    /// profileSmoothing, then held to maxGrade (a forward and a backward pass), never closer
-    /// than roadAboveWater to the lakes. Cells an earlier road already set keep their height, so
-    /// roads meet level. Writes map.RoadHeight and map.RoadCut.
+    /// profileSmoothing, then held to maxGrade (a forward and a backward pass). Cells an earlier
+    /// road already set keep their height, so roads meet level. Writes map.RoadHeight and map.RoadCut.
     /// </summary>
     void PlanRoadHeights()
     {
@@ -54,12 +53,11 @@ public sealed partial class RegionGenerator
                 if (!pinned[k]) heights[k] = Clamp(heights[k], heights[k + 1], MaxRise(path[k], path[k + 1]));
         }
 
-        float lowest = map.LakeLevel + settings.roadAboveWater;
         for (int k = 0; k < n; k++)
         {
             if (pinned[k]) continue;
             int i = index[k];
-            map.RoadHeight[i] = Mathf.Max(heights[k], lowest);
+            map.RoadHeight[i] = heights[k];
             map.RoadCut[i] = map.Metres(i) - map.RoadHeight[i];
         }
     }

@@ -32,7 +32,6 @@ public sealed class RoadShaper
     readonly HeightField field;
     readonly RegionFrame frame;
     readonly RegionBuildSettings settings;
-    readonly float lowestSurface;       // no road surface below this (just above lake level)
     readonly RegionMap map;
     readonly float maxGrade;            // the plan's
     readonly List<RoadPath> built = new();
@@ -44,14 +43,13 @@ public sealed class RoadShaper
 
     const float SmoothingLength = 20f;  // metres: just enough to round off the plan's cell-to-cell corners
 
-    public RoadShaper(HeightField field, RegionFrame frame, RegionMap map, RegionBuildSettings settings, float maxGrade, float lowestSurface)
+    public RoadShaper(HeightField field, RegionFrame frame, RegionMap map, RegionBuildSettings settings, float maxGrade)
     {
         this.field = field;
         this.frame = frame;
         this.map = map;
         this.settings = settings;
         this.maxGrade = maxGrade;
-        this.lowestSurface = lowestSurface;
         nearestDistance = new float[field.Resolution, field.Resolution];
         nearestHeight = new float[field.Resolution, field.Resolution];
         for (int r = 0; r < field.Resolution; r++)
@@ -103,8 +101,8 @@ public sealed class RoadShaper
 
     /// <summary>
     /// The road's height along its length: the plan's height for each cell, read between cells,
-    /// averaged over SmoothingLength, then held to maxGrade (a forward and a backward pass), and
-    /// never below lowestSurface. Pinned ends keep the height of the road they join.
+    /// averaged over SmoothingLength, then held to maxGrade (a forward and a backward pass).
+    /// Pinned ends keep the height of the road they join.
     /// </summary>
     float[] Profile(RoadSegment segment, int count, float? startHeight, float? endHeight)
     {
@@ -128,7 +126,6 @@ public sealed class RoadShaper
                 heights[i] = Mathf.Clamp(heights[i], heights[i + 1] - maxRise, heights[i + 1] + maxRise);
             Pin(heights, startHeight, endHeight);
         }
-        for (int i = 0; i < count; i++) heights[i] = Mathf.Max(heights[i], lowestSurface);
         return heights;
     }
 

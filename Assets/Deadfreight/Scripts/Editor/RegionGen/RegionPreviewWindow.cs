@@ -5,9 +5,8 @@ using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// Top-down preview of a generated region: land, water, forest, fog, roads and places; the
-/// entry, trunk and fork; and each route from entry to site with its length, driving time and
-/// conditions. Change the seed or edit the settings asset and it regenerates.
+/// Top-down preview of a generated region: land, roads and places; the entry, trunk and fork;
+/// and each route from entry to site with its length, driving time and share of steep grades. Change the seed or edit the settings asset and it regenerates.
 ///
 /// The land and the roads can each be coloured several ways (LandView, RoadView; colours and
 /// legends in RegionPreviewWindow.Views.cs), and hovering a cell shows everything about it.
@@ -15,7 +14,7 @@ using UnityEngine;
 public sealed partial class RegionPreviewWindow : EditorWindow
 {
     const float PanelWidth = 320f;
-    const string DefaultSettingsPath = "Assets/Deadfreight/Data/RegionGen/DefaultRegionSettings.asset";
+    const string DefaultSettingsPath = "Assets/Deadfreight/Data/RegionGen/RegionSettings.asset";
 
     static readonly Color EntryColor = new(0.3f, 0.9f, 0.3f);
     static readonly Color SiteColor = new(0.95f, 0.3f, 0.3f);
@@ -32,7 +31,7 @@ public sealed partial class RegionPreviewWindow : EditorWindow
     [SerializeField] bool showLanes = true;
     [SerializeField] List<bool> routeVisible = new();
 
-    [SerializeField] LandView landView = LandView.Overview;
+    [SerializeField] LandView landView = LandView.ShadedRelief;
     [SerializeField] RoadView roadView = RoadView.Plain;
     [SerializeField] bool contours;
     [SerializeField] float contourInterval = 10f;
@@ -40,7 +39,7 @@ public sealed partial class RegionPreviewWindow : EditorWindow
 
     RegionMap map;
     // Worked out once per generation, for the views.
-    float maxDrainage = 1f, maxRoadCost = 2f;
+    float maxRoadCost = 2f;
 
     // Where the map was last drawn, and the cell under the mouse (if any).
     Rect mapRect;
@@ -95,12 +94,10 @@ public sealed partial class RegionPreviewWindow : EditorWindow
     /// <summary>The things the views need that the map doesn't hold directly.</summary>
     void MeasureForViews()
     {
-        maxDrainage = 1f;
         maxRoadCost = 2f;
         for (int i = 0; i < map.Elevation.Length; i++)
         {
-            maxDrainage = Mathf.Max(maxDrainage, map.Drainage[i]);
-            if (map.RoadCost != null && !map.Water[i]) maxRoadCost = Mathf.Max(maxRoadCost, map.RoadCost[i]);
+            if (map.RoadCost != null) maxRoadCost = Mathf.Max(maxRoadCost, map.RoadCost[i]);
         }
     }
 
@@ -211,7 +208,7 @@ public sealed partial class RegionPreviewWindow : EditorWindow
             DrawLandLegend();
             if (roadView != RoadView.Plain && roadView != RoadView.Hidden) DrawRoadLegend();
         }
-        if (landView == LandView.Biomes && map != null && GUILayout.Button("Redraw (after editing a biome's colour)")) BuildTexture();
+
 
         if (settings == null)
         {
@@ -241,8 +238,7 @@ public sealed partial class RegionPreviewWindow : EditorWindow
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Routes, entry → site (trunk included)", EditorStyles.boldLabel);
         EditorGUILayout.LabelField(
-            $"{map.Routes.Count - 1} alternates · {map.RejectedAlternates} tries rejected for time" +
-            (map.HasEscarpment ? $" · escarpment {map.ScarpRise:0} m, {map.Cuttings} cut cells" : ""),
+            $"{map.Routes.Count - 1} alternates · {map.RejectedAlternates} tries rejected for time",
             EditorStyles.miniLabel);
 
         float mainMinutes = map.Routes[0].OneWayMinutes;
@@ -271,8 +267,8 @@ public sealed partial class RegionPreviewWindow : EditorWindow
         EditorGUILayout.Space();
         EditorGUILayout.LabelField(
             "Times are driving only, from the speed settings, and include the trunk; round trip uses the " +
-            "same route both ways. Conditions are the share of each route past the fork that runs through " +
-            "mud, fords, steep grades, forest and fog.", EditorStyles.wordWrappedMiniLabel);
+            "same route both ways. Steep is the share of each route past the fork on grades steeper than Steep Slope.",
+            EditorStyles.wordWrappedMiniLabel);
     }
 
     static string Conditions(Route r)
