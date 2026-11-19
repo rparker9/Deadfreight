@@ -1,7 +1,7 @@
 // Scripts/Runtime/LevelGen/LevelGenerator.Land.cs
 using UnityEngine;
 
-// Stage 1: the land. Placeholder: rolling noise hills.
+// Stage 1: the land. Base hills everywhere, then the region's landform over them, then slope.
 public sealed partial class LevelGenerator
 {
     const int HillOctaves = 5;
@@ -9,6 +9,7 @@ public sealed partial class LevelGenerator
     void ShapeLand()
     {
         ShapeHills();
+        ShapeLandform();
         ComputeSlope();
     }
 
@@ -17,17 +18,35 @@ public sealed partial class LevelGenerator
     /// </summary>
     void ShapeHills()
     {
-        var noise = GridNoise.Fbm(cellsX, cellsY, settings.hillScale, HillOctaves, rng);
+        var noise = GridNoise.Fbm(cellsX, cellsY, region.hillScale, HillOctaves, rng);
         PlanGrid.Normalize(noise);
         for (int i = 0; i < cellCount; i++)
-            plan.GroundHeight[i] = Mathf.Pow(noise[i], settings.flatness) * settings.relief;
+            plan.GroundHeight[i] = Mathf.Pow(noise[i], region.flatness) * region.relief;
     }
 
-    /// <summary>Rise over run at each cell, from the cells either side.</summary>
+    /// <summary>
+    /// The region's landform reshapes the hills, and the result goes back to 0 to Relief metres.
+    /// </summary>
+    void ShapeLandform()
+    {
+        if (region.landform == null) 
+            return;
+        region.landform.Shape(plan, rng);
+        PlanGrid.Normalize(plan.GroundHeight);
+
+        // Iterate through the cells and scale them to the region's relief. The landform only decides the shape, not the height range.
+        for (int i = 0; i < cellCount; i++) 
+            plan.GroundHeight[i] *= region.relief;
+    }
+
+    /// <summary>
+    /// Rise over run at each cell, from the cells either side.
+    /// </summary>
     void ComputeSlope()
     {
         var ground = plan.GroundHeight;
         float run = 2f * settings.cellSize;
+
         for (int y = 0; y < cellsY; y++)
         for (int x = 0; x < cellsX; x++)
         {

@@ -64,6 +64,13 @@ public sealed class DayNightCycle : MonoBehaviour
     /// <summary>The current hour, 0-24.</summary>
     public float Hour { get; private set; }
 
+    /// <summary>The look of the day. LevelBuilder sets it from the level's region.</summary>
+    public DayNightProfile Profile
+    {
+        get => profile;
+        set => profile = value;
+    }
+
     void OnEnable() => Apply();
     void OnValidate() => Apply();
     void Update() => Apply();

@@ -2876,8 +2876,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3132f0a4105d8e44aaa67160f712885b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RegionBuilder
-  levelSettings: {fileID: 11400000, guid: 007eaf37b5c80414d8f6f9d6d5ddb67d, type: 2}
+  planSettings: {fileID: 11400000, guid: 007eaf37b5c80414d8f6f9d6d5ddb67d, type: 2}
   buildSettings: {fileID: 11400000, guid: 4a7128911a93d064ab284b14d9c6b0d8, type: 2}
+  region: {fileID: 11400000, guid: 004d5cab1ec2e8840b5fd5c54238015a, type: 2}
   seed: 1113279890
   buildOnStart: 1
 --- !u!4 &1431377713
@@ -2902,7 +2903,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1431377711}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5ba732cba0ff14c408dcf9144690757c, type: 3}
   m_Name: 
@@ -3501,7 +3502,7 @@ Transform:
   m_GameObject: {fileID: 1637565306}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 4000, y: 150, z: 4000}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

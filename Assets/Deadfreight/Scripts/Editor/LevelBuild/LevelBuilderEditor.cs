@@ -44,7 +44,7 @@ public sealed class LevelBuilderEditor : Editor
             var plan = builder.Plan;
             EditorGUILayout.Space();
             EditorGUILayout.LabelField(
-                $"{plan.CellsX * plan.CellSize / 1000f:0.#} × {plan.CellsY * plan.CellSize / 1000f:0.#} km · {plan.Relief:0} m relief",
+                $"{plan.Region.name} · {plan.CellsX * plan.CellSize / 1000f:0.#} × {plan.CellsY * plan.CellSize / 1000f:0.#} km · {plan.Relief:0} m relief",
                 EditorStyles.miniLabel);
         }
     }

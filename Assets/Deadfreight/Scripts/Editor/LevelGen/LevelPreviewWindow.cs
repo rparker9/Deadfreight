@@ -4,7 +4,7 @@ using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// Top-down preview of a generated level. Change the seed or edit the settings asset and it
+/// Top-down preview of a generated level. Change the seed or region, or edit either asset, and it
 /// regenerates. The land can be coloured several ways (LandView; colours and legends in
 /// LevelPreviewWindow.Views.cs), and hovering a cell shows its details.
 /// </summary>
@@ -12,8 +12,10 @@ public sealed partial class LevelPreviewWindow : EditorWindow
 {
     const float PanelWidth = 320f;
     const string DefaultSettingsPath = "Assets/Deadfreight/Data/LevelGen/PlanSettings.asset";
+    const string DefaultRegionPath = "Assets/Deadfreight/Data/Regions/Region.asset";
 
     [SerializeField] PlanSettings settings;
+    [SerializeField] RegionProfile region;
     [SerializeField] int seed = 1;
     [SerializeField] LandView landView = LandView.ShadedRelief;
     [SerializeField] bool contours;
@@ -46,10 +48,10 @@ public sealed partial class LevelPreviewWindow : EditorWindow
             DestroyImmediate(texture);
     }
 
-    // Settings assets are edited in the inspector; regenerate when their contents change.
+    // The assets are edited in the inspector; regenerate when their contents change.
     void OnInspectorUpdate()
     {
-        string snapshot = settings != null ? JsonUtility.ToJson(settings) : null;
+        string snapshot = (settings != null ? JsonUtility.ToJson(settings) : "") + (region != null ? JsonUtility.ToJson(region) : "");
         if (snapshot == settingsSnapshot) return;
         settingsSnapshot = snapshot;
         Regenerate();
@@ -60,10 +62,10 @@ public sealed partial class LevelPreviewWindow : EditorWindow
     void Regenerate()
     {
         plan = null;
-        if (settings == null) return;
+        if (settings == null || region == null) return;
 
         var timer = Stopwatch.StartNew();
-        plan = LevelGenerator.Generate(seed, settings);
+        plan = LevelGenerator.Generate(seed, settings, region);
         generateMs = timer.ElapsedMilliseconds;
 
         BuildTexture();
@@ -121,6 +123,7 @@ public sealed partial class LevelPreviewWindow : EditorWindow
 
         EditorGUI.BeginChangeCheck();
         settings = (PlanSettings)EditorGUILayout.ObjectField("Settings", settings, typeof(PlanSettings), false);
+        region = (RegionProfile)EditorGUILayout.ObjectField("Region", region, typeof(RegionProfile), false);
         using (new EditorGUILayout.HorizontalScope())
         {
             seed = EditorGUILayout.IntField("Seed", seed);
@@ -151,10 +154,11 @@ public sealed partial class LevelPreviewWindow : EditorWindow
         if (plan != null && settings != null)
             DrawLandLegend();
 
-        if (settings == null)
+        if (settings == null || region == null)
         {
-            EditorGUILayout.HelpBox("Assign Plan Settings to start.", MessageType.Info);
-            if (GUILayout.Button("Create default settings")) CreateDefaultSettings();
+            EditorGUILayout.HelpBox("Assign Plan Settings and a Region to start.", MessageType.Info);
+            if (settings == null && GUILayout.Button("Create default settings")) CreateDefaultSettings();
+            if (region == null && GUILayout.Button("Create a region")) CreateDefaultRegion();
             return;
         }
 
@@ -163,7 +167,7 @@ public sealed partial class LevelPreviewWindow : EditorWindow
 
         EditorGUILayout.Space();
         float km = plan.CellsX * plan.CellSize / 1000f, kmTall = plan.CellsY * plan.CellSize / 1000f;
-        EditorGUILayout.LabelField($"{km:0.#} × {kmTall:0.#} km · generated in {generateMs} ms", EditorStyles.miniLabel);
+        EditorGUILayout.LabelField($"{region.name} · {km:0.#} × {kmTall:0.#} km · generated in {generateMs} ms", EditorStyles.miniLabel);
 
         if (plan.Failure != null)
         {
@@ -245,14 +249,26 @@ public sealed partial class LevelPreviewWindow : EditorWindow
 
     void CreateDefaultSettings()
     {
-        const string parent = "Assets/Deadfreight/Data";
-        if (!AssetDatabase.IsValidFolder(parent + "/LevelGen"))
-            AssetDatabase.CreateFolder(parent, "LevelGen");
-
-        var asset = CreateInstance<PlanSettings>();
-        AssetDatabase.CreateAsset(asset, AssetDatabase.GenerateUniqueAssetPath(DefaultSettingsPath));
-        AssetDatabase.SaveAssets();
-        settings = asset;
+        settings = CreateAsset<PlanSettings>("LevelGen", DefaultSettingsPath);
         Regenerate();
+    }
+
+    void CreateDefaultRegion()
+    {
+        region = CreateAsset<RegionProfile>("Regions", DefaultRegionPath);
+        Regenerate();
+    }
+
+    /// <summary>A new asset at <paramref name="path"/> (numbered if taken), making its folder under Data if needed.</summary>
+    static T CreateAsset<T>(string folder, string path) where T : ScriptableObject
+    {
+        const string parent = "Assets/Deadfreight/Data";
+        if (!AssetDatabase.IsValidFolder($"{parent}/{folder}"))
+            AssetDatabase.CreateFolder(parent, folder);
+
+        var asset = CreateInstance<T>();
+        AssetDatabase.CreateAsset(asset, AssetDatabase.GenerateUniqueAssetPath(path));
+        AssetDatabase.SaveAssets();
+        return asset;
     }
 }

@@ -12,6 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 85bf6e1a4ae945145b4fc30db63ec80f, type: 3}
   m_Name: BuildSettings
   m_EditorClassIdentifier: Assembly-CSharp::RegionBuildSettings
-  heightmapResolution: 4097
+  heightmapResolution: 2049
+  alphamapResolution: 512
   terrainMaterial: {fileID: 2100000, guid: 6aa744a8b65ac5f4ea3a642a565fa79e, type: 2}
-  groundLayer: {fileID: 8574412962073106934, guid: 9cfbfd434aaa5394b9eb54228e903de9, type: 2}

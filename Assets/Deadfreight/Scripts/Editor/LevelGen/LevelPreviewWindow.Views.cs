@@ -9,6 +9,7 @@ public enum LandView
     ShadedRelief,   // colour by height, lit from the north-west, so landforms read as 3D
     Height,         // grayscale, low dark to high light
     Slope,          // flat green to steep red
+    Zones,          // each zone in its preview colour, hill-shaded
 }
 
 // The colours and legends for each view. The window itself is in LevelPreviewWindow.cs.
@@ -27,8 +28,16 @@ public sealed partial class LevelPreviewWindow
         {
             LandView.Height => Gray(0.08f + 0.9f * t),
             LandView.Slope => Ramp(plan.Slope[i] / SlopeFullRed),
+            LandView.Zones => ZoneColor(i) * Shade(i),
             _ => HeightTint(t) * Shade(i),
         };
+    }
+
+    /// <summary>The cell's zone's preview colour (gray for a region with no zones).</summary>
+    Color ZoneColor(int i)
+    {
+        var zones = plan.Region.zones;
+        return zones.Count > 0 ? zones[plan.Zone[i]].previewColor : Color.gray;
     }
 
     /// <summary>Low ground green, through tan and gray, to pale high ground (t: 0 lowest, 1 highest).</summary>
@@ -83,15 +92,37 @@ public sealed partial class LevelPreviewWindow
         switch (landView)
         {
             case LandView.Height:
-                GradientBar(t => Gray(0.08f + 0.9f * t), "0 m", $"{settings.relief * 0.5f:0} m", $"{settings.relief:0} m");
+                GradientBar(t => Gray(0.08f + 0.9f * t), "0 m", $"{plan.Relief * 0.5f:0} m", $"{plan.Relief:0} m");
                 break;
             case LandView.Slope:
                 GradientBar(Ramp, "0%", $"{SlopeFullRed * 50f:0.#}%", $"{SlopeFullRed * 100f:0}%+");
+                break;
+            case LandView.Zones:
+                ZoneKey();
                 break;
             default:
                 GradientBar(HeightTint, "low", "", "high");
                 break;
         }
+    }
+
+    /// <summary>Each zone's colour and name, with the share of the level it covers.</summary>
+    void ZoneKey()
+    {
+        var zones = plan.Region.zones;
+        var cells = new int[Mathf.Max(1, zones.Count)];
+        foreach (byte z in plan.Zone) cells[z]++;
+
+        for (int z = 0; z < zones.Count; z++)
+        {
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                var box = GUILayoutUtility.GetRect(12f, 12f, GUILayout.Width(12f));
+                EditorGUI.DrawRect(box, zones[z].previewColor);
+                EditorGUILayout.LabelField($"{zones[z].name} · {cells[z] * 100f / plan.Zone.Length:0}%", EditorStyles.miniLabel);
+            }
+        }
+        if (zones.Count == 0) EditorGUILayout.LabelField("This region has no zones.", EditorStyles.miniLabel);
     }
 
     /// <summary>A colour bar with labels under its ends and middle.</summary>
@@ -120,6 +151,7 @@ public sealed partial class LevelPreviewWindow
         {
             $"Cell {cell.x}, {cell.y}",
             $"Ground {plan.GroundHeight[i]:0} m · slope {plan.Slope[i] * 100f:0}%",
+            plan.Region.zones.Count > 0 ? $"Zone: {plan.Region.zones[plan.Zone[i]].name}" : "No zones",
         };
         return string.Join("\n", lines);
     }
