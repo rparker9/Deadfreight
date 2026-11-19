@@ -75,26 +75,6 @@ public sealed class HeightField
         row1 = Mathf.Min(Resolution - 1, Mathf.CeilToInt((world.y + radius) / StepZ));
     }
 
-    // ---------- shaping ----------
-
-    /// <summary>
-    /// Levels a round pad at the plan's <paramref name="height"/>: flat out to <paramref name="radius"/>,
-    /// then blending back to the ground over <paramref name="blend"/>. Road surfaces are left alone.
-    /// </summary>
-    public void PressPad(Vector2 centre, float height, float radius, float blend)
-    {
-        SamplesAround(centre, radius + blend, out int c0, out int c1, out int r0, out int r1);
-
-        for (int r = r0; r <= r1; r++)
-        for (int c = c0; c <= c1; c++)
-        {
-            if (roadCore[r, c]) continue;
-            float d = Vector2.Distance(SampleToWorld(c, r), centre);
-            float weight = 1f - GridMath.SmoothStep(radius, radius + blend, d);
-            Heights[r, c] = Mathf.Lerp(Heights[r, c], height, weight);
-        }
-    }
-
     /// <summary>
     /// Copies the heights into the terrain's 0-1 range. Returns the world height of 0 and the
     /// height span, for TerrainData.size.y and the terrain's position.

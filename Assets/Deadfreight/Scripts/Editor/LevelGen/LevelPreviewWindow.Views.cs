@@ -12,17 +12,6 @@ public enum LandView
     RoadCost,       // what the road pathfinder pays per cell: why roads go where they go
 }
 
-/// <summary>What the roads are coloured by.</summary>
-public enum RoadView
-{
-    Plain,          // one road colour; routes in their own colours
-    Class,          // main road, back roads, lanes
-    Steepness,      // the grade under each road cell
-    Speed,          // driving speed: road class and grade together, i.e. how easy it is to travel
-    CutFill,        // how far each road cell is planned below the ground (cutting) or above it (embankment)
-    Hidden,         // no roads, to see the land underneath
-}
-
 // The colours and legends for each view. The window itself is in LevelPreviewWindow.cs.
 public sealed partial class LevelPreviewWindow
 {
@@ -49,13 +38,6 @@ public sealed partial class LevelPreviewWindow
             LandView.RoadCost => RoadCostColour(i),
             _ => HeightTint(e) * Shade(i),
         };
-    }
-
-    /// <summary>Cheap ground dark blue, dear ground red; log scale, so the cheap end isn't all one colour.</summary>
-    Color RoadCostColour(int i)
-    {
-        if (map.RoadCost == null) return Color.black;
-        return CostRamp(Mathf.Log(map.RoadCost[i]) / Mathf.Log(maxRoadCost));
     }
 
     /// <summary>Low ground green, through tan and grey, to pale high ground.</summary>
@@ -88,25 +70,6 @@ public sealed partial class LevelPreviewWindow
         int Band(int j) => Mathf.FloorToInt(map.Elevation[j] * settings.relief / contourInterval);
         int band = Band(i);
         return (x + 1 < map.Width && Band(i + 1) != band) || (y + 1 < map.Height && Band(i + map.Width) != band);
-    }
-
-    // ---------- roads ----------
-
-    /// <summary>A road cell's colour in the current road view.</summary>
-    Color RoadCellColour(int i) => roadView switch
-    {
-        RoadView.Class => map.MainRoad[i] ? MainRoadColour : OnAnyRoute(i) ? BackRoadColour : LaneColour,
-        RoadView.Steepness => Ramp(map.Slope[i] / (settings.steepSlope * 2f)),
-        RoadView.Speed => Ramp(1f - LevelGenerator.SpeedMph(map, settings, i) / settings.mainRoadSpeed),
-        RoadView.CutFill => CutFillColour(map.RoadCut[i]),
-        _ => RoadColour,
-    };
-
-    /// <summary>Level with the ground pale; cuttings red, embankments blue, full colour at CutFillFull metres.</summary>
-    static Color CutFillColour(float cut)
-    {
-        if (float.IsNaN(cut)) return RoadColour;
-        return Color.Lerp(Grey(0.9f), cut > 0f ? CutColour : FillColour, Mathf.Abs(cut) / CutFillFull);
     }
 
     // ---------- ramps ----------

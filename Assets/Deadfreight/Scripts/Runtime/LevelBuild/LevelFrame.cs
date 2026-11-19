@@ -2,11 +2,7 @@
 using UnityEngine;
 
 /// <summary>
-/// Converts between level grid cells and world metres. Each cell's value is treated as a
-/// sample at a grid point, so the world spans (width - 1) × (height - 1) cells.
-///
-/// The grid's y runs south and the world's z runs north, so from above the built level looks
-/// like the preview window. World positions are passed as Vector2 (x, z).
+/// Used by LevelBuilder to convert between cell positions and world positions, and to get the level's size.
 /// </summary>
 public readonly struct LevelFrame
 {
@@ -23,9 +19,13 @@ public readonly struct LevelFrame
     public float SizeX => (Width - 1) * CellSize;
     public float SizeZ => (Height - 1) * CellSize;
 
-    /// <summary>World (x, z) of a cell position. Fractional cells are fine.</summary>
+    /// <summary>
+    /// World (x, z) of a cell position. Fractional cells are fine.
+    /// </summary>
     public Vector2 CellToWorld(Vector2 cell) => new(cell.x * CellSize, (Height - 1 - cell.y) * CellSize);
 
-    /// <summary>Cell position (fractional) of a world (x, z).</summary>
+    /// <summary>
+    /// Cell position (fractional) of a world (x, z).
+    /// </summary>
     public Vector2 WorldToCell(Vector2 world) => new(world.x / CellSize, Height - 1 - world.y / CellSize);
 }
