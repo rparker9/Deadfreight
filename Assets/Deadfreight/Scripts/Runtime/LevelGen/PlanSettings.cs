@@ -3,8 +3,9 @@ using UnityEngine;
 using UnityEngine.Serialization;
 
 /// <summary>
-/// What every level's plan shares, whatever its region: the grid. What makes each region
-/// different (land, zones, atmosphere) is in its RegionProfile.
+/// What every level's plan shares, whatever its region: the grid, the border, and where the
+/// start, site and settlements go. What makes each region different (land, zones, atmosphere)
+/// is in its RegionProfile.
 /// </summary>
 [CreateAssetMenu(fileName = "PlanSettings", menuName = "Level/Plan Settings")]
 public sealed class PlanSettings : ScriptableObject
@@ -19,9 +20,31 @@ public sealed class PlanSettings : ScriptableObject
     [Range(32, 400), Tooltip("Cells south to north.")]
     public int cellsY = 160;
 
+    [Header("Border and entry")]
+    [Unit("m"), Tooltip("Land around the playable area that's built but not played, so the world never visibly ends. The road in crosses it.")]
+    public float borderWidth = 750f;
+    [Range(0.1f, 1f), Tooltip("The road comes in somewhere along this middle share of a map edge, keeping it out of corners.")]
+    public float entrySpan = 0.6f;
+    [Unit("m"), Tooltip("How far inside the playable area the start place sits, along the road in.")]
+    public float startInset = 150f;
+
+    [Header("Places")]
+    [Range(0.02f, 0.4f), Tooltip("Places need ground flatter than this, rise over run, and dry.")]
+    public float maxPlaceSlope = 0.12f;
+    [Unit("m"), Tooltip("Straight-line distance from the start to the site: at least this... It sets how long the run's drive is.")]
+    public float siteMinDistance = 5500f;
+    [Unit("m"), Tooltip("...and at most this.")]
+    public float siteMaxDistance = 7000f;
+    [Range(0, 60), Tooltip("Settlements (farmsteads) in a level, before the region's Settlement Density. Each makes travel that shapes the roads, and gets a road.")]
+    public int settlements = 12;
+    [Unit("m"), Tooltip("Minimum distance between any two places.")]
+    public float placeSpacing = 550f;
+
     /// <summary>Keeps sizes positive.</summary>
     void OnValidate()
     {
         cellSize = Mathf.Max(1f, cellSize);
+        borderWidth = Mathf.Max(0f, borderWidth);
+        siteMaxDistance = Mathf.Max(siteMinDistance, siteMaxDistance);
     }
 }

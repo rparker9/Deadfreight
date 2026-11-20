@@ -1,4 +1,5 @@
 // Scripts/Runtime/LevelGen/LevelPlan.cs
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -7,6 +8,9 @@ using UnityEngine;
 ///
 /// Cell (x, y) sits at (x, y) × CellSize metres in the world: x east, y north (the world's z).
 /// A cell's index into the per-cell arrays is y × CellsX + x.
+///
+/// The whole map is built, but play happens inside PlayArea: the border around it only carries
+/// the land (and the road in) out of sight, so the world never visibly ends.
 /// </summary>
 public sealed class LevelPlan
 {
@@ -19,6 +23,11 @@ public sealed class LevelPlan
     public readonly float[] Slope;              // rise over run
     public readonly byte[] Zone;                // index into Region.zones
     public float WaterHeight = -1f;             // metres: ground below it is under water. Negative = no water.
+
+    public RectInt PlayArea;                    // cells where play happens; the rest is border
+    public LevelEntry Entry;                    // where the road comes in, on the map edge
+    public Place Start, Site;                   // also in Places
+    public readonly List<Place> Places = new();
 
     /// <summary>Why generation stopped early, or null if it finished.</summary>
     public string Failure;
@@ -40,4 +49,8 @@ public sealed class LevelPlan
     public int Index(Vector2Int cell) => cell.y * CellsX + cell.x;
     public Vector2Int CellAt(int index) => new(index % CellsX, index / CellsX);
     public bool InBounds(Vector2Int cell) => cell.x >= 0 && cell.y >= 0 && cell.x < CellsX && cell.y < CellsY;
+    public bool InPlayArea(Vector2Int cell) => PlayArea.Contains(cell);
+
+    /// <summary>World (x, z) of a cell, as a Vector2.</summary>
+    public Vector2 WorldXZ(Vector2Int cell) => (Vector2)cell * CellSize;
 }

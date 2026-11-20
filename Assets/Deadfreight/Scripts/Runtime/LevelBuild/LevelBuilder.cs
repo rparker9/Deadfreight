@@ -7,8 +7,8 @@ using Debug = UnityEngine.Debug;
 
 /// <summary>
 /// Generates a plan from the seed and region, and builds it in the scene: the terrain, painted
-/// with the region's zones, the water surface, and the region's atmosphere handed to the
-/// scene's DayNightCycle.
+/// with the region's zones, the water surface, a placeholder box at each place, and the
+/// region's atmosphere handed to the scene's DayNightCycle. The player spawn goes to the start.
 /// </summary>
 public sealed class LevelBuilder : MonoBehaviour
 {
@@ -63,6 +63,7 @@ public sealed class LevelBuilder : MonoBehaviour
 
         var timer = Stopwatch.StartNew();
         Plan = LevelGenerator.Generate(seed, planSettings, region);
+        long planMs = timer.ElapsedMilliseconds;
         if (Plan.Failure != null)
         {
             Debug.LogWarning($"Level {seed} not built: {Plan.Failure}", this);
@@ -72,27 +73,25 @@ public sealed class LevelBuilder : MonoBehaviour
         // The plan's ground heights → the terrain's, at its resolution.
         PlanToWorld planToWorld = new PlanToWorld(Plan);
         TerrainHeights heights = TerrainHeights.FromPlan(Plan, planToWorld, buildSettings);
+        long heightsMs = timer.ElapsedMilliseconds;
 
         // Create the root object and the terrain in the scene.
         root = new GameObject(RootName);
         root.transform.SetParent(transform, false);
         CreateTerrain(planToWorld, heights);
+        long terrainMs = timer.ElapsedMilliseconds;
         CreateWater(planToWorld);
+        CreatePlaceMarkers();
         ApplyAtmosphere();
-
-        // Place the player spawn point at the center of the level using a raycast to find the ground height
-        Vector3 groundPos = new Vector3(planToWorld.SizeX / 2f, Plan.WaterHeight + 1f, planToWorld.SizeZ / 2f);
-        if (Physics.Raycast(new Vector3(planToWorld.SizeX / 2f, 1000f, planToWorld.SizeZ / 2f), Vector3.down, out RaycastHit hit))
-            groundPos = hit.point;
-
-        if (playerSpawn != null) 
-            playerSpawn.position = groundPos;
+        PlaceSpawn();
 
         // Remove any leftover objects from a previous build, and hide all generated objects from the scene so they don't get saved.
         if (!Application.isPlaying) 
             HideFromScene();
         
-        Debug.Log($"Built level {seed} ({region.name}) in {timer.ElapsedMilliseconds * 0.001f:F2}s.", this);
+        Debug.Log($"Built level {seed} ({region.name}) in {timer.ElapsedMilliseconds * 0.001f:F2}s: " +
+                  $"plan {planMs} ms, heights {heightsMs - planMs} ms, terrain {terrainMs - heightsMs} ms, " +
+                  $"rest {timer.ElapsedMilliseconds - terrainMs} ms.", this);
     }
 
     public void Clear()
@@ -200,6 +199,68 @@ public sealed class LevelBuilder : MonoBehaviour
         go.transform.SetParent(root.transform, false);
         go.GetComponent<MeshFilter>().sharedMesh = mesh;
         go.GetComponent<MeshRenderer>().sharedMaterial = region.waterMaterial;
+    }
+
+    // ---------- Places ----------
+
+    /// <summary>
+    /// Stand-ins until places have real buildings: a box at each place, sized and coloured by
+    /// kind, so they can be found and driven to.
+    /// </summary>
+    void CreatePlaceMarkers()
+    {
+        var parent = new GameObject("Places").transform;
+        parent.SetParent(root.transform, false);
+
+        foreach (var place in Plan.Places)
+        {
+            var (size, color) = place.Kind switch
+            {
+                PlaceKind.Start => (new Vector3(6f, 4f, 10f), new Color(0.3f, 0.8f, 0.3f)),
+                PlaceKind.Site => (new Vector3(24f, 12f, 24f), new Color(0.8f, 0.2f, 0.2f)),
+                PlaceKind.Hamlet => (new Vector3(14f, 7f, 14f), new Color(0.6f, 0.45f, 0.9f)),
+                _ => (new Vector3(8f, 5f, 10f), new Color(0.75f, 0.72f, 0.65f)),
+            };
+
+            var box = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            box.name = place.Kind.ToString();
+            box.transform.SetParent(parent, false);
+            box.transform.localPosition = GroundAt(place.Cell) + Vector3.up * (size.y * 0.5f);
+            box.transform.localScale = size;
+            box.GetComponent<MeshRenderer>().sharedMaterial = MarkerMaterial(color);
+        }
+    }
+
+    /// <summary>
+    /// The player spawn goes to the start place, just off the ground, facing inland along the
+    /// road in (away from the map edge).
+    /// </summary>
+    void PlaceSpawn()
+    {
+        if (playerSpawn == null || Plan.Start == null)
+            return;
+
+        var inward = Plan.Entry.Inward;
+        playerSpawn.position = transform.TransformPoint(GroundAt(Plan.Start.Cell) + Vector3.up);
+        playerSpawn.rotation = transform.rotation * Quaternion.LookRotation(new Vector3(inward.x, 0f, inward.y));
+    }
+
+    /// <summary>
+    /// The ground under a cell's centre, in the builder's local space: the same bicubic height the
+    /// terrain is built from, so no physics raycast is needed.
+    /// </summary>
+    Vector3 GroundAt(Vector2Int cell)
+    {
+        var world = Plan.WorldXZ(cell);
+        float height = PlanGrid.Bicubic(Plan.GroundHeight, Plan.CellsX, Plan.CellsY, cell);
+        return new Vector3(world.x, height, world.y);
+    }
+
+    Material MarkerMaterial(Color color)
+    {
+        var shader = Shader.Find("Universal Render Pipeline/Lit");
+        if (shader == null) shader = Shader.Find("Standard");
+        return Track(new Material(shader) { name = "Place Marker", color = color });
     }
 
     /// <summary>

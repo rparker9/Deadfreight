@@ -608,7 +608,7 @@ MonoBehaviour:
   maxForce: 3200
   power: 16000
   reverseForce: 1500
-  maxForwardSpeed: 15
+  maxForwardSpeed: 10
   maxReverseSpeed: 5
 --- !u!114 &4534104129618912850
 MonoBehaviour:

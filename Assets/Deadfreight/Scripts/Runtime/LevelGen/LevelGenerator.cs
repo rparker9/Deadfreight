@@ -5,6 +5,8 @@
 /// each in its own LevelGenerator.*.cs file:
 ///   Land    warped base hills, the region's landform, the water line, slope
 ///   Zones   which of the region's zones each cell is
+///   Anchors the playable area, the road in and the start place, the site, settlements
+/// A stage that can't do its job sets plan.Failure, and the stages after it don't run.
 /// </summary>
 public sealed partial class LevelGenerator
 {
@@ -42,5 +44,6 @@ public sealed partial class LevelGenerator
     {
         ShapeLand();
         PlaceZones();
+        PlaceAnchors();
     }
 }

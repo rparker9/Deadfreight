@@ -31,6 +31,10 @@ public sealed class RegionProfile : ScriptableObject
     [Tooltip("The region's big shape, laid over the base hills (a valley, an escarpment...). Empty = base hills only.")]
     public Landform landform;
 
+    [Header("Places")]
+    [Range(0f, 3f), Tooltip("Multiplies Plan Settings' settlement count: below 1 for empty country, above 1 for busy farmland.")]
+    public float settlementDensity = 1f;
+
     [Header("Water")]
     [Range(0f, 0.9f), Tooltip("Share of the level under water. 0 = no water. The land is reshaped so exactly this much lies below the water line, whatever the seed.")]
     public float waterCover = 0f;

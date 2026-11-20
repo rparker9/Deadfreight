@@ -163,6 +163,11 @@ public sealed partial class LevelPreviewWindow
         };
         if (plan.IsWater(i))
             lines.Add($"Under water, {plan.WaterHeight - plan.GroundHeight[i]:0.#} m deep");
+        if (plan.Entry != null && !plan.InPlayArea(cell))
+            lines.Add("Border (not played)");
+        var place = plan.Entry != null ? PlaceAt(cell) : null;
+        if (place != null)
+            lines.Add($"Place: {place.Kind}");
         return string.Join("\n", lines);
     }
 }

@@ -97,6 +97,7 @@ public sealed partial class LevelPreviewWindow : EditorWindow
         var c = LandColor(i);
         if (contours && contourInterval > 0f && OnContour(i)) 
             c *= 1f - ContourDarken;
+        c = DimBorder(i, c);
 
         c.a = 1f;
         return c;
@@ -146,6 +147,9 @@ public sealed partial class LevelPreviewWindow : EditorWindow
         }
 
         smoothPixels = EditorGUILayout.Toggle("Smooth pixels", smoothPixels);
+        showPlaces = EditorGUILayout.Toggle("Places", showPlaces);
+        using (new EditorGUI.DisabledScope(!showPlaces))
+            showPlaceLabels = EditorGUILayout.Toggle("Place labels", showPlaceLabels);
         bool redraw = EditorGUI.EndChangeCheck();
 
         if (regenerate) Regenerate();
@@ -174,6 +178,8 @@ public sealed partial class LevelPreviewWindow : EditorWindow
             EditorGUILayout.HelpBox(plan.Failure + " Try another seed or loosen the settings.", MessageType.Warning);
             return;
         }
+
+        DrawPlaceSummary();
     }
 
     void DrawCanvas(Rect canvas)
@@ -192,6 +198,7 @@ public sealed partial class LevelPreviewWindow : EditorWindow
         if (Event.current.type != EventType.Repaint) 
             return;
 
+        DrawPlaces();
         if (hoverCell.HasValue) 
             DrawHoverReport(hoverCell.Value);
     }
