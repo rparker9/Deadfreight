@@ -5,10 +5,11 @@ using UnityEngine;
 
 /// <summary>
 /// Tools/Deadfreight/Create Example Regions: makes the Drowned Bayou and The Hollers, each with
-/// its landform, as assets to build from and tune. Running it again makes numbered copies; it
-/// never overwrites. Ground layers and day-night profiles are left empty for the art.
+/// its landform and day-night profile (ExampleRegions.Atmosphere.cs), as assets to build from
+/// and tune. Running it again makes numbered copies; it never overwrites. Ground layers are left
+/// empty for the art.
 /// </summary>
-public static class ExampleRegions
+public static partial class ExampleRegions
 {
     const string Folder = "Assets/Deadfreight/Data/LevelGen/Regions";
 
@@ -36,6 +37,7 @@ public static class ExampleRegions
         region.landform = valley;
         region.waterCover = 0.22f;
         region.waterLevel = 0.16f;
+        region.dayNight = CreateBayouDayNight();
         region.zones = new List<ZoneDefinition>
         {
             Zone("Open water", "#3b6e7a", maxHeight: 0.16f),
@@ -60,6 +62,7 @@ public static class ExampleRegions
         region.warp = 28f;
         region.landform = ridges;
         region.waterCover = 0f;
+        region.dayNight = CreateHollersDayNight();
         region.zones = new List<ZoneDefinition>
         {
             Zone("Bald", "#b5ad7c", minHeight: 0.78f, maxSlope: 0.30f),

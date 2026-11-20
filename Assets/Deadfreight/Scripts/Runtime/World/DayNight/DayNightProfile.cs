@@ -71,11 +71,11 @@ public sealed class DayNightProfile : ScriptableObject
     [Tooltip("Weight of DayNightCycle's night Volume: 0 by day, 1 by night. Spread over the whole twilight so it's never noticed.")]
     public AnimationCurve nightVolumeWeight = Curve((NightEnds, 1f), (Sunrise, 0f), (Sunset, 0f), (Night, 1f));
 
-    // ---------- building the defaults ----------
+    // ---------- building the defaults (public, so editor tools can build profiles the same way) ----------
 
-    static Color Rgb(float r, float g, float b) => new(r, g, b, 1f);
+    public static Color Rgb(float r, float g, float b) => new(r, g, b, 1f);
 
-    static Gradient Colors(params (float time, Color color)[] keys)
+    public static Gradient Colors(params (float time, Color color)[] keys)
     {
         var colorKeys = new GradientColorKey[keys.Length];
         for (int k = 0; k < keys.Length; k++) colorKeys[k] = new GradientColorKey(keys[k].color, keys[k].time);
@@ -89,7 +89,7 @@ public sealed class DayNightProfile : ScriptableObject
     /// two keys it only rises or only falls, so a fade never wobbles. Each key's slope is the
     /// harmonic mean of the slopes either side, or flat where the curve turns round or ends.
     /// </summary>
-    static AnimationCurve Curve(params (float time, float value)[] keys)
+    public static AnimationCurve Curve(params (float time, float value)[] keys)
     {
         var frames = new Keyframe[keys.Length];
         for (int k = 0; k < keys.Length; k++)

@@ -17,6 +17,7 @@ public sealed class LevelBuilder : MonoBehaviour
     [SerializeField] BuildSettings buildSettings;
     [Tooltip("The level's region. The lobby sets it from the chosen heist; set here for testing.")]
     [SerializeField] RegionProfile region;
+    [SerializeField] Transform playerSpawn;
     [SerializeField] int seed = 1;
     [SerializeField] bool buildOnStart = true;
 
@@ -69,8 +70,8 @@ public sealed class LevelBuilder : MonoBehaviour
         }
 
         // The plan's ground heights → the terrain's, at its resolution.
-        var planToWorld = new PlanToWorld(Plan);
-        var heights = TerrainHeights.FromPlan(Plan, planToWorld, buildSettings);
+        PlanToWorld planToWorld = new PlanToWorld(Plan);
+        TerrainHeights heights = TerrainHeights.FromPlan(Plan, planToWorld, buildSettings);
 
         // Create the root object and the terrain in the scene.
         root = new GameObject(RootName);
@@ -78,6 +79,14 @@ public sealed class LevelBuilder : MonoBehaviour
         CreateTerrain(planToWorld, heights);
         CreateWater(planToWorld);
         ApplyAtmosphere();
+
+        // Place the player spawn point at the center of the level using a raycast to find the ground height
+        Vector3 groundPos = new Vector3(planToWorld.SizeX / 2f, Plan.WaterHeight + 1f, planToWorld.SizeZ / 2f);
+        if (Physics.Raycast(new Vector3(planToWorld.SizeX / 2f, 1000f, planToWorld.SizeZ / 2f), Vector3.down, out RaycastHit hit))
+            groundPos = hit.point;
+
+        if (playerSpawn != null) 
+            playerSpawn.position = groundPos;
 
         // Remove any leftover objects from a previous build, and hide all generated objects from the scene so they don't get saved.
         if (!Application.isPlaying) 
@@ -190,18 +199,7 @@ public sealed class LevelBuilder : MonoBehaviour
         var go = new GameObject("Water", typeof(MeshFilter), typeof(MeshRenderer));
         go.transform.SetParent(root.transform, false);
         go.GetComponent<MeshFilter>().sharedMesh = mesh;
-        go.GetComponent<MeshRenderer>().sharedMaterial = region.waterMaterial != null ? region.waterMaterial : PlainWater();
-    }
-
-    /// <summary>A dark, glossy stand-in until the region has a water material.</summary>
-    Material PlainWater()
-    {
-        var shader = Shader.Find("Universal Render Pipeline/Lit");
-        if (shader == null) shader = Shader.Find("Standard");
-
-        var material = Track(new Material(shader) { name = "Plain Water", color = DefaultWater });
-        material.SetFloat("_Smoothness", 0.9f);
-        return material;
+        go.GetComponent<MeshRenderer>().sharedMaterial = region.waterMaterial;
     }
 
     /// <summary>

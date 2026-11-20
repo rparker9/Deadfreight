@@ -20,7 +20,7 @@ MonoBehaviour:
   landform: {fileID: 11400000, guid: 1d461cd247f276c4993660f9d2cbb967, type: 2}
   waterCover: 0
   waterLevel: 0.15
-  waterMaterial: {fileID: 0}
+  waterMaterial: {fileID: 2100000, guid: e315e38ce98c5524894278cc9f91dabf, type: 2}
   zones:
   - name: Bald
     previewColor: {r: 0.70980394, g: 0.6784314, b: 0.4862745, a: 1}
@@ -28,26 +28,26 @@ MonoBehaviour:
     maxHeight: 1
     minSlope: 0
     maxSlope: 0.3
-    groundLayer: {fileID: 0}
+    groundLayer: {fileID: 8574412962073106934, guid: 9cfbfd434aaa5394b9eb54228e903de9, type: 2}
   - name: Laurel thicket
     previewColor: {r: 0.24313726, g: 0.3529412, b: 0.20784314, a: 1}
     minHeight: 0
     maxHeight: 1
     minSlope: 0.3
     maxSlope: 1
-    groundLayer: {fileID: 0}
+    groundLayer: {fileID: 8574412962073106934, guid: 9a4ba761abd327349917411ddfb17ff8, type: 2}
   - name: Hollow
     previewColor: {r: 0.18431373, g: 0.2901961, b: 0.22745098, a: 1}
     minHeight: 0
     maxHeight: 0.3
     minSlope: 0
     maxSlope: 1
-    groundLayer: {fileID: 0}
+    groundLayer: {fileID: 8574412962073106934, guid: f592b4b66d569fd4aa233f3ac606e2d9, type: 2}
   - name: Hardwood slope
     previewColor: {r: 0.41568628, g: 0.47843137, b: 0.2509804, a: 1}
     minHeight: 0
     maxHeight: 1
     minSlope: 0
     maxSlope: 1
-    groundLayer: {fileID: 0}
-  dayNight: {fileID: 0}
+    groundLayer: {fileID: 8574412962073106934, guid: 6f7e98351d7af474ab6ae0f0f5201915, type: 2}
+  dayNight: {fileID: 11400000, guid: 88cddf7313c174843b2b4280dd01d815, type: 2}

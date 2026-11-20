@@ -20,7 +20,7 @@ MonoBehaviour:
   landform: {fileID: 11400000, guid: 8759e9d06961c9842bcf50de687985b5, type: 2}
   waterCover: 0.22
   waterLevel: 0.16
-  waterMaterial: {fileID: 0}
+  waterMaterial: {fileID: 2100000, guid: 5b78c42f4642d2c4398b9c0d3e7ffe50, type: 2}
   zones:
   - name: Open water
     previewColor: {r: 0.23137255, g: 0.43137255, b: 0.47843137, a: 1}
@@ -28,26 +28,26 @@ MonoBehaviour:
     maxHeight: 0.16
     minSlope: 0
     maxSlope: 1
-    groundLayer: {fileID: 0}
+    groundLayer: {fileID: 8574412962073106934, guid: 9dcd4e6f34b85be41bae622151eb4468, type: 2}
   - name: Cypress swamp
     previewColor: {r: 0.3019608, g: 0.41960785, b: 0.22745098, a: 1}
     minHeight: 0.16
     maxHeight: 0.21
     minSlope: 0
     maxSlope: 1
-    groundLayer: {fileID: 0}
+    groundLayer: {fileID: 8574412962073106934, guid: 9a4ba761abd327349917411ddfb17ff8, type: 2}
   - name: Levee & hammock
     previewColor: {r: 0.4862745, g: 0.5411765, b: 0.30588236, a: 1}
     minHeight: 0.21
     maxHeight: 0.4
     minSlope: 0
     maxSlope: 1
-    groundLayer: {fileID: 0}
+    groundLayer: {fileID: 8574412962073106934, guid: 647c71d8b8074844ba9171e012f76600, type: 2}
   - name: Pine upland
     previewColor: {r: 0.5764706, g: 0.5686275, b: 0.36078432, a: 1}
     minHeight: 0
     maxHeight: 1
     minSlope: 0
     maxSlope: 1
-    groundLayer: {fileID: 0}
-  dayNight: {fileID: 0}
+    groundLayer: {fileID: 8574412962073106934, guid: 81577ebd758a35c4db6d41164edda05b, type: 2}
+  dayNight: {fileID: 11400000, guid: 52218b059c74ae049a50f538e5273f0a, type: 2}
