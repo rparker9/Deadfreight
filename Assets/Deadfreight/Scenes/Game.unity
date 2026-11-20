@@ -15,14 +15,14 @@ RenderSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 10
   m_Fog: 1
-  m_FogColor: {r: 0.45833242, g: 0.44166434, b: 0.37166435, a: 1}
+  m_FogColor: {r: 0.44999892, g: 0.4449973, b: 0.5099968, a: 1}
   m_FogMode: 3
-  m_FogDensity: 0.011052846
+  m_FogDensity: 0.008151069
   m_LinearFogStart: 0
   m_LinearFogEnd: 300
-  m_AmbientSkyColor: {r: 0.24333084, g: 0.24499625, b: 0.21332978, a: 1}
-  m_AmbientEquatorColor: {r: 0.2549984, g: 0.22666383, b: 0.17499733, a: 1}
-  m_AmbientGroundColor: {r: 0.07833244, g: 0.07999893, b: 0.056665957, a: 1}
+  m_AmbientSkyColor: {r: 0.23332977, g: 0.23666167, b: 0.2966606, a: 1}
+  m_AmbientEquatorColor: {r: 0.2549984, g: 0.2099968, b: 0.21666276, a: 1}
+  m_AmbientGroundColor: {r: 0.06833244, g: 0.058332443, b: 0.05083271, a: 1}
   m_AmbientIntensity: 1
   m_AmbientMode: 1
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
@@ -1619,8 +1619,8 @@ Light:
   m_Enabled: 1
   serializedVersion: 13
   m_Type: 1
-  m_Color: {r: 0.970832, g: 0.6930395, b: 0.4430395, a: 1}
-  m_Intensity: 0.5956281
+  m_Color: {r: 1, g: 0.72220755, b: 0.5069275, a: 1}
+  m_Intensity: 0.57717866
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -2874,7 +2874,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RegionBuilder
   planSettings: {fileID: 11400000, guid: 007eaf37b5c80414d8f6f9d6d5ddb67d, type: 2}
   buildSettings: {fileID: 11400000, guid: 4a7128911a93d064ab284b14d9c6b0d8, type: 2}
-  region: {fileID: 11400000, guid: 902ba6395fe5e1b4cbfd09bb7167fa22, type: 2}
+  region: {fileID: 11400000, guid: 02a24ff956435a349afcf82e86438db2, type: 2}
   playerSpawn: {fileID: 1637565307}
   seed: 1848673037
   buildOnStart: 1
@@ -2905,13 +2905,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5ba732cba0ff14c408dcf9144690757c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DayNightCycle
-  profile: {fileID: 11400000, guid: 52218b059c74ae049a50f538e5273f0a, type: 2}
+  profile: {fileID: 11400000, guid: 88cddf7313c174843b2b4280dd01d815, type: 2}
   skyLight: {fileID: 963356746}
   skybox: {fileID: 2100000, guid: a8aea4c82e67cbf408cc6cf969529d13, type: 2}
   nightVolume: {fileID: 1127940389}
   startHour: 7
-  dayLength: 1
-  paused: 1
+  dayLength: 20
+  paused: 0
   sunrise: 90
   pathTilt: 30
   moonDelay: 6
