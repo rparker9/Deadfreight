@@ -50,6 +50,11 @@ public sealed class VehicleSeat : MonoBehaviour
     [SerializeField] private SteerMode steerMode = SteerMode.Camera;
     [Tooltip("Camera mode: how far (degrees) the camera must be off the vehicle's heading for full lock")]
     [Unit("°")] [SerializeField] private float cameraSteerFullAngle = 30f;
+    [Tooltip("Camera mode: driving forward with the camera this far (degrees) off the vehicle's heading starts a drift, " +
+             "as if the handbrake were pulled. Above 180 = never drift.")]
+    [Unit("°")] [SerializeField] private float cameraDriftStartAngle = 60f;
+    [Tooltip("Camera mode: ...and this far is a full drift.")]
+    [Unit("°")] [SerializeField] private float cameraDriftFullAngle = 110f;
 
     // Public Accessors
     public SeatRole Role => role;
@@ -59,6 +64,8 @@ public sealed class VehicleSeat : MonoBehaviour
     public float CameraDistance => cameraDistance;
     public SteerMode Steering => steerMode;
     public float CameraSteerFullAngle => cameraSteerFullAngle;
+    public float CameraDriftStartAngle => cameraDriftStartAngle;
+    public float CameraDriftFullAngle => cameraDriftFullAngle;
 
     /// <summary>
     /// The vehicle this seat belongs to (root with VehicleSeating).

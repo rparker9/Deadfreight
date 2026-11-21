@@ -99,6 +99,8 @@ MonoBehaviour:
   cameraDistance: 6
   steerMode: 0
   cameraSteerFullAngle: 60
+  cameraDriftStartAngle: 60
+  cameraDriftFullAngle: 110
 --- !u!1 &1399413200896720177
 GameObject:
   m_ObjectHideFlags: 0
@@ -344,6 +346,8 @@ MonoBehaviour:
   cameraDistance: 6
   steerMode: 0
   cameraSteerFullAngle: 30
+  cameraDriftStartAngle: 60
+  cameraDriftFullAngle: 110
 --- !u!1 &3366009551489185906
 GameObject:
   m_ObjectHideFlags: 0
@@ -395,7 +399,7 @@ GameObject:
   - component: {fileID: 7768220147044556662}
   - component: {fileID: 4534104129618912850}
   m_Layer: 0
-  m_Name: Wagon
+  m_Name: Vehicle
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -409,8 +413,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3430703773991628202}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0.99824756, z: 0, w: 0.05917576}
-  m_LocalPosition: {x: 6251.3247, y: 35.957577, z: 6435.065}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -462,7 +466,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 3692914260
+  GlobalObjectIdHash: 656960520
   InScenePlacedSourceGlobalObjectIdHash: 3692914260
   m_InScenePlacedDisabledByDefault: 0
   DeferredDespawnTick: 0
@@ -554,7 +558,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Vehicle
   ShowTopMostFoldoutHeaderGroup: 1
   centerOfMass: {x: 0, y: 0.2, z: 0}
-  maxAngularVelocity: 7
+  maxAngularVelocity: 5
   impactSpeedThreshold: 3
   tipAngle: 60
   stuckSpeed: 0.05
@@ -589,10 +593,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VehicleSteering
   axle: {fileID: 5076293386212617008}
-  maxSteerAngle: 30
-  steerSpeed: 90
-  steerAtHighSpeed: 0.35
-  highSpeed: 6
+  maxSteerAngle: 35
+  steerSpeed: 180
+  steerAtHighSpeed: 0.45
+  highSpeed: 15
 --- !u!114 &7768220147044556662
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -605,11 +609,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a8c9e26c81f345f28e6dfe6fd5e622e4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VehicleEngine
-  maxForce: 3200
-  power: 16000
-  reverseForce: 1500
-  maxForwardSpeed: 10
-  maxReverseSpeed: 5
+  maxForce: 3500
+  power: 30000
+  reverseForce: 1800
+  maxForwardSpeed: 16
+  maxReverseSpeed: 6
 --- !u!114 &4534104129618912850
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -622,7 +626,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f930ce8a3cde408fbf100c249c804695, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VehicleBrakes
-  response: 0.02
+  response: 6
+  releaseResponse: 0
+  handbrakeDrag: 0.5
+  handbrakeResponse: 5
+  handbrakeMinSpeed: 4
 --- !u!1 &3480582597879332454
 GameObject:
   m_ObjectHideFlags: 0
@@ -670,8 +678,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VehicleWheel
   profile: {fileID: 11400000, guid: 760023d09df84031b75c1f47d6b162c7, type: 2}
   visual: {fileID: 7456234532648190053}
-  isDriven: 1
-  hasBrake: 0
+  isDriven: 0
+  hasBrake: 1
+  slidesOnHandbrake: 0
 --- !u!1 &3683194105152472180
 GameObject:
   m_ObjectHideFlags: 0
@@ -752,6 +761,7 @@ MonoBehaviour:
   visual: {fileID: 492593253371329108}
   isDriven: 1
   hasBrake: 1
+  slidesOnHandbrake: 1
 --- !u!1 &4839270128622189191
 GameObject:
   m_ObjectHideFlags: 0
@@ -1048,8 +1058,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VehicleWheel
   profile: {fileID: 11400000, guid: 760023d09df84031b75c1f47d6b162c7, type: 2}
   visual: {fileID: 5981810336736221988}
-  isDriven: 1
-  hasBrake: 0
+  isDriven: 0
+  hasBrake: 1
+  slidesOnHandbrake: 0
 --- !u!1 &7152942385847203552
 GameObject:
   m_ObjectHideFlags: 0
@@ -1188,6 +1199,7 @@ MonoBehaviour:
   visual: {fileID: 5702903244721511412}
   isDriven: 1
   hasBrake: 1
+  slidesOnHandbrake: 1
 --- !u!1 &7994439417069270741
 GameObject:
   m_ObjectHideFlags: 0

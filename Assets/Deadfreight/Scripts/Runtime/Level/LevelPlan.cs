@@ -28,6 +28,7 @@ public sealed class LevelPlan
     public LevelEntry Entry;                    // where the road comes in, on the map edge
     public Place Start, Site;                   // also in Places
     public readonly List<Place> Places = new();
+    public readonly List<Road> Roads = new();   // the main road first, then the branches
 
     /// <summary>Why generation stopped early, or null if it finished.</summary>
     public string Failure;

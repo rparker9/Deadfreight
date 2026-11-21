@@ -27,7 +27,7 @@ public sealed class PlayerSeating : NetworkBehaviour
 
     // Owner: latest driver input, sent at inputSendRate
     private float _throttle, _steer;
-    private bool _brake;
+    private bool _brake, _handbrake;
     private float _nextSendTime;
 
     public VehicleSeat CurrentSeat => _seat;
@@ -46,11 +46,12 @@ public sealed class PlayerSeating : NetworkBehaviour
     // OWNER INPUT API (called by PlayerInputController)
     // ============================================================
 
-    public void SetDriverInput(float throttle, float steer, bool brake)
+    public void SetDriverInput(float throttle, float steer, bool brake, bool handbrake)
     {
         _throttle = Mathf.Clamp(throttle, -1f, 1f);
         _steer = Mathf.Clamp(steer, -1f, 1f);
         _brake = brake;
+        _handbrake = handbrake;
     }
 
     public void RequestExit()
@@ -71,23 +72,29 @@ public sealed class PlayerSeating : NetworkBehaviour
         if (Time.unscaledTime >= _nextSendTime)
         {
             _nextSendTime = Time.unscaledTime + 1f / Mathf.Max(1f, inputSendRate);
-            DriverInputServerRpc(_throttle, ComputeSteer(), _brake);
+            float steer = ComputeSteer(out float drift);
+            DriverInputServerRpc(_throttle, steer, _brake, Mathf.Max(_handbrake ? 1f : 0f, drift));
         }
     }
 
     /// <summary>
-    /// Keys: A/D as given. 
+    /// Keys: A/D as given, and no automatic drift.
     /// Camera (Halo-style): steer toward where the camera looks, reversed when backing up so the rear swings toward the camera.
+    /// Swinging the camera well past full lock while driving forward also drifts (<paramref name="drift"/>, 0 to 1),
+    /// until the vehicle has swung round to face it.
     /// </summary>
-    private float ComputeSteer()
+    private float ComputeSteer(out float drift)
     {
-        // Return 
+        drift = 0f;
         if (_seat.Steering == VehicleSeat.SteerMode.Keys || _camera == null)
             return _steer;
 
         float vehicleYaw = _seat.Vehicle.eulerAngles.y;
         float offset = Mathf.DeltaAngle(vehicleYaw, _camera.WorldYaw);
         float steer = Mathf.Clamp(offset / Mathf.Max(1f, _seat.CameraSteerFullAngle), -1f, 1f);
+
+        if (_throttle > 0.01f)
+            drift = Mathf.InverseLerp(_seat.CameraDriftStartAngle, _seat.CameraDriftFullAngle, Mathf.Abs(offset));
 
         return _throttle < -0.01f ? -steer : steer;
     }
@@ -146,7 +153,7 @@ public sealed class PlayerSeating : NetworkBehaviour
         if (_capsule != null) _capsule.enabled = false;
         if (IsOwner && _motor != null) _motor.enabled = false;
         _throttle = _steer = 0f;
-        _brake = false;
+        _brake = _handbrake = false;
 
         // Third person starts behind the vehicle, looking slightly down.
         if (IsOwner && _camera != null && _seat.ThirdPerson)
@@ -179,10 +186,10 @@ public sealed class PlayerSeating : NetworkBehaviour
     // ============================================================
 
     [Rpc(SendTo.Server, Delivery = RpcDelivery.Unreliable)]
-    private void DriverInputServerRpc(float throttle, float steer, bool brake)
+    private void DriverInputServerRpc(float throttle, float steer, bool brake, float handbrake)
     {
         if (_vehicle != null)
-            _vehicle.ServerDriverInput(OwnerClientId, throttle, steer, brake);
+            _vehicle.ServerDriverInput(OwnerClientId, throttle, steer, brake, handbrake);
     }
 
     [Rpc(SendTo.Server)]

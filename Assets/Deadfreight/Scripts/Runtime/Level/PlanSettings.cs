@@ -40,11 +40,20 @@ public sealed class PlanSettings : ScriptableObject
     [Unit("m"), Tooltip("Minimum distance between any two places.")]
     public float placeSpacing = 550f;
 
+    [Header("Roads")]
+    [Range(0.02f, 0.3f), Tooltip("Steepest grade a road climbs before it costs far more, rise over run along the road. Roads wind across slopes to stay under it.")]
+    public float maxRoadGrade = 0.08f;
+    [Range(0f, 20f), Tooltip("How much climbing costs, below the max grade. 0 = roads ignore hills until the max; more = roads go round hills sooner, and run longer.")]
+    public float roadGradeCost = 3f;
+    [Range(1f, 200f), Tooltip("How many times more a metre of road through water costs than on dry ground. Roads cross water only to save a long way round, on a raised causeway.")]
+    public float roadWaterCost = 30f;
+
     /// <summary>Keeps sizes positive.</summary>
     void OnValidate()
     {
         cellSize = Mathf.Max(1f, cellSize);
         borderWidth = Mathf.Max(0f, borderWidth);
         siteMaxDistance = Mathf.Max(siteMinDistance, siteMaxDistance);
+        maxRoadGrade = Mathf.Max(0.01f, maxRoadGrade);
     }
 }

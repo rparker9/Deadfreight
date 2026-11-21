@@ -10,7 +10,7 @@ public sealed class ZoneDefinition
 {
     [Tooltip("Shown in the preview.")]
     public string name = "Zone";
-    [Tooltip("The zone's colour in the preview's Zones view, and on the ground when it has no Ground Layer.")]
+    [Tooltip("The zone's colour in the preview's Zones view.")]
     public Color previewColor = Color.gray;
 
     [Range(0f, 1f), Tooltip("Lowest ground the zone covers: 0 = the lowest in the level, 1 = the highest...")]

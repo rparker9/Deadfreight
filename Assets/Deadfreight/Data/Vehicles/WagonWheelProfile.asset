@@ -15,12 +15,13 @@ MonoBehaviour:
   radius: 0.4
   suspensionTravel: 0.15
   castRadiusScale: 1
-  spring: 16000
-  damper: 1300
-  tireForceHeight: 0.15
-  lateralFriction: 1
-  rollingResistance: 0.03
-  brakeFriction: 0.8
+  spring: 10000
+  damper: 900
+  tireForceHeight: 0.25
+  lateralFriction: 1.3
+  rollingResistance: 0.05
+  brakeFriction: 1.4
+  driftGrip: 0.3
   groundMask:
     serializedVersion: 2
     m_Bits: 1

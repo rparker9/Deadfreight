@@ -10,13 +10,13 @@ public sealed class VehicleSteering : VehicleModule
     [SerializeField] private Transform axle;
     [Unit("°")] [SerializeField] private float maxSteerAngle = 35f;
     [Tooltip("Degrees per second the axle can turn")]
-    [Unit("°/s")] [SerializeField] private float steerSpeed = 90f;
+    [Unit("°/s")] [SerializeField] private float steerSpeed = 200f;
 
     [Header("Speed-sensitive steering")]
     [Tooltip("Fraction of max steer angle allowed at High Speed (1 = no reduction)")]
-    [Range(0.1f, 1f)][SerializeField] private float steerAtHighSpeed = 0.35f;
+    [Range(0.1f, 1f)][SerializeField] private float steerAtHighSpeed = 0.45f;
     [Tooltip("Speed (m/s) at which steering is reduced to Steer At High Speed")]
-    [Unit("m/s")][SerializeField] private float highSpeed = 7f;
+    [Unit("m/s")][SerializeField] private float highSpeed = 16f;
 
     public override int Order => VehicleModuleOrder.Steering;
     public float MaxSteerAngle => maxSteerAngle;

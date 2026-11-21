@@ -147,6 +147,7 @@ public sealed partial class LevelPreviewWindow : EditorWindow
         }
 
         smoothPixels = EditorGUILayout.Toggle("Smooth pixels", smoothPixels);
+        showRoads = EditorGUILayout.Toggle("Roads", showRoads);
         showPlaces = EditorGUILayout.Toggle("Places", showPlaces);
         using (new EditorGUI.DisabledScope(!showPlaces))
             showPlaceLabels = EditorGUILayout.Toggle("Place labels", showPlaceLabels);
@@ -180,6 +181,7 @@ public sealed partial class LevelPreviewWindow : EditorWindow
         }
 
         DrawPlaceSummary();
+        DrawRoadSummary();
     }
 
     void DrawCanvas(Rect canvas)
@@ -198,6 +200,7 @@ public sealed partial class LevelPreviewWindow : EditorWindow
         if (Event.current.type != EventType.Repaint) 
             return;
 
+        DrawRoads();
         DrawPlaces();
         if (hoverCell.HasValue) 
             DrawHoverReport(hoverCell.Value);

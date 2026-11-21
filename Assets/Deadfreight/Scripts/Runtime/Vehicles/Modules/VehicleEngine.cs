@@ -16,17 +16,17 @@ public sealed class VehicleEngine : VehiclePower
 {
     [Tooltip("Most force the engine can ever push with (N): decides the steepest hill it can climb from a stop")]
     [FormerlySerializedAs("forwardForce")]
-    [Unit("N")] [SerializeField] private float maxForce = 2000f;
+    [Unit("N")] [SerializeField] private float maxForce = 3500f;
 
     [Tooltip("Engine power (W). Higher = climbs and accelerates faster at speed.")]
-    [Unit("W")] [SerializeField] private float power = 6000f;
+    [Unit("W")] [SerializeField] private float power = 30000f;
 
     [Tooltip("Force cap when reversing (N)")]
-    [Unit("N")] [SerializeField] private float reverseForce = 1000f;
+    [Unit("N")] [SerializeField] private float reverseForce = 1800f;
 
     [Tooltip("Hard top speed (m/s): the engine stops pushing above this")]
-    [Unit("m/s")] [SerializeField] private float maxForwardSpeed = 7f;
-    [Unit("m/s")] [SerializeField] private float maxReverseSpeed = 2.5f;
+    [Unit("m/s")] [SerializeField] private float maxForwardSpeed = 16f;
+    [Unit("m/s")] [SerializeField] private float maxReverseSpeed = 6f;
 
     /// <summary>Below this speed (m/s) power isn't divided by speed (avoids infinite force at a standstill).</summary>
     private const float MinPowerSpeed = 0.5f;

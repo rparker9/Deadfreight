@@ -2,7 +2,7 @@
 using UnityEditor;
 using UnityEngine;
 
-// The playable area, the road in, and the places, drawn over the map. The window itself is in
+// The playable area, where the road comes in, and the places, drawn over the map. The window itself is in
 // LevelPreviewWindow.cs.
 public sealed partial class LevelPreviewWindow
 {
@@ -63,18 +63,17 @@ public sealed partial class LevelPreviewWindow
         Handles.DrawSolidRectangleWithOutline(rect, Color.clear, new Color(1f, 1f, 1f, 0.6f));
     }
 
-    /// <summary>The road in: a line from the map edge to the start place, with an arrow at the edge pointing inland.</summary>
+    /// <summary>
+    /// Where the road comes in: an arrow at the map edge pointing inland. The road itself is
+    /// the start of the main road, drawn with the roads.
+    /// </summary>
     void DrawRoadIn()
     {
         Vector3 edge = ToScreen(plan.Entry.Cell), start = ToScreen(plan.Start.Cell);
-        Handles.color = Color.black;
-        Handles.DrawAAPolyLine(5f, edge, start);
-        Handles.color = StartColor;
-        Handles.DrawAAPolyLine(3f, edge, start);
-
         var inward = (start - edge).normalized;
         var across = new Vector3(-inward.y, inward.x, 0f);
         var tip = edge + inward * 14f;
+        Handles.color = StartColor;
         Handles.DrawAAConvexPolygon(tip, edge + across * 7f, edge - across * 7f);
     }
 

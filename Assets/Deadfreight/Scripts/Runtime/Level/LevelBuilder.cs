@@ -7,8 +7,9 @@ using Debug = UnityEngine.Debug;
 
 /// <summary>
 /// Generates a plan from the seed and region, and builds it in the scene: the terrain, painted
-/// with the region's zones, the water surface, a placeholder box at each place, and the
-/// region's atmosphere handed to the scene's DayNightCycle. The player spawn goes to the start.
+/// with the region's zones and carved for the roads, the roads, the water surface, a
+/// placeholder box at each place, and the region's atmosphere handed to the scene's
+/// DayNightCycle. The player spawn and the vehicle go to the start.
 /// </summary>
 public sealed class LevelBuilder : MonoBehaviour
 {
@@ -18,12 +19,20 @@ public sealed class LevelBuilder : MonoBehaviour
     [Tooltip("The level's region. The lobby sets it from the chosen heist; set here for testing.")]
     [SerializeField] RegionProfile region;
     [SerializeField] Transform playerSpawn;
+    [Tooltip("The vehicle the run starts with. Moved to the start, pulled over beside the road, when the level is built.")]
+    [SerializeField] Transform vehicle;
     [SerializeField] int seed = 1;
     [SerializeField] bool buildOnStart = true;
 
     const string RootName = "Generated Level";
     static readonly Color DefaultGround = new(0.42f, 0.50f, 0.30f);    // for a region with no zones
     static readonly Color DefaultWater = new(0.10f, 0.20f, 0.20f);     // for a region with no water material
+    static readonly Color RoadColor = new(0.45f, 0.38f, 0.30f);        // for no road material: packed dirt
+    const float MainRoadLift = 0.15f;   // metres the main road's mesh sits above the carved ground
+    const float BranchLift = 0.10f;     // ...and branches', a little lower
+    const int VehicleAhead = 5;         // road samples (2 m each) the vehicle waits ahead of the player
+    const float VehicleSideGap = 2.5f;  // metres from the road's edge to the vehicle's centre: on the carved flat
+    const float VehicleDrop = 0.5f;     // metres above the ground it starts, to settle onto its wheels
 
     GameObject root;
     readonly List<Object> createdAssets = new();    // meshes, materials, terrain data: destroyed on Clear
@@ -62,8 +71,16 @@ public sealed class LevelBuilder : MonoBehaviour
         }
 
         var timer = Stopwatch.StartNew();
+        long last = 0;
+        long Lap()      // milliseconds since the last lap
+        {
+            long now = timer.ElapsedMilliseconds, lap = now - last;
+            last = now;
+            return lap;
+        }
+
         Plan = LevelGenerator.Generate(seed, planSettings, region);
-        long planMs = timer.ElapsedMilliseconds;
+        long planMs = Lap();
         if (Plan.Failure != null)
         {
             Debug.LogWarning($"Level {seed} not built: {Plan.Failure}", this);
@@ -73,25 +90,37 @@ public sealed class LevelBuilder : MonoBehaviour
         // The plan's ground heights → the terrain's, at its resolution.
         PlanToWorld planToWorld = new PlanToWorld(Plan);
         TerrainHeights heights = TerrainHeights.FromPlan(Plan, planToWorld, buildSettings);
-        long heightsMs = timer.ElapsedMilliseconds;
+        long heightsMs = Lap();
+
+        // The roads' curves, and the ground carved to them before the terrain is made.
+        var roads = ShapeRoads();
+        CarveRoads(heights, roads);
+        long roadsMs = Lap();
 
         // Create the root object and the terrain in the scene.
         root = new GameObject(RootName);
         root.transform.SetParent(transform, false);
         CreateTerrain(planToWorld, heights);
-        long terrainMs = timer.ElapsedMilliseconds;
+        long terrainMs = Lap();
+
+        CreateRoads(roads);
+        roadsMs += Lap();
+
         CreateWater(planToWorld);
         CreatePlaceMarkers();
         ApplyAtmosphere();
-        PlaceSpawn();
+        int start = NearestPoint(roads[0], Plan.WorldXZ(Plan.Start.Cell));
+        PlaceSpawn(roads[0], start);
+        PlaceVehicle(roads[0], start);
 
         // Remove any leftover objects from a previous build, and hide all generated objects from the scene so they don't get saved.
         if (!Application.isPlaying) 
             HideFromScene();
-        
+        long restMs = Lap();
+
         Debug.Log($"Built level {seed} ({region.name}) in {timer.ElapsedMilliseconds * 0.001f:F2}s: " +
-                  $"plan {planMs} ms, heights {heightsMs - planMs} ms, terrain {terrainMs - heightsMs} ms, " +
-                  $"rest {timer.ElapsedMilliseconds - terrainMs} ms.", this);
+                  $"plan {planMs} ms, heights {heightsMs} ms, roads {roadsMs} ms, terrain {terrainMs} ms, " +
+                  $"rest {restMs} ms.", this);
     }
 
     public void Clear()
@@ -201,6 +230,48 @@ public sealed class LevelBuilder : MonoBehaviour
         go.GetComponent<MeshRenderer>().sharedMaterial = region.waterMaterial;
     }
 
+    // ---------- Roads ----------
+
+    List<RoadShape> ShapeRoads()
+    {
+        var shapes = new List<RoadShape>(Plan.Roads.Count);
+        foreach (var road in Plan.Roads)
+            shapes.Add(RoadShape.FromRoad(road, Plan));
+        return shapes;
+    }
+
+    /// <summary>
+    /// Flattens the ground under each road and eases it back to the land beside it. The flat
+    /// part reaches one heightmap sample past the road's edge, so the terrain between samples
+    /// can't rise through the road surface.
+    /// </summary>
+    void CarveRoads(TerrainHeights heights, List<RoadShape> roads)
+    {
+        float flatHalfWidth = buildSettings.roadWidth * 0.5f + Mathf.Max(heights.StepX, heights.StepZ);
+        heights.CarveRoads(roads, flatHalfWidth, buildSettings.roadShoulder);
+    }
+
+    /// <summary>
+    /// A mesh strip along each road, with a collider so wheels ride on it. Branches sit a
+    /// little lower than the main road, so where they overlap at a junction the main road shows.
+    /// </summary>
+    void CreateRoads(List<RoadShape> roads)
+    {
+        var parent = new GameObject("Roads").transform;
+        parent.SetParent(root.transform, false);
+        var material = buildSettings.roadMaterial != null ? buildSettings.roadMaterial : PlainMaterial("Road", RoadColor);
+
+        foreach (var road in roads)
+        {
+            var mesh = Track(road.ToMesh(buildSettings.roadWidth, road.Kind == RoadKind.Main ? MainRoadLift : BranchLift));
+            var go = new GameObject(mesh.name, typeof(MeshFilter), typeof(MeshRenderer), typeof(MeshCollider));
+            go.transform.SetParent(parent, false);
+            go.GetComponent<MeshFilter>().sharedMesh = mesh;
+            go.GetComponent<MeshRenderer>().sharedMaterial = material;
+            go.GetComponent<MeshCollider>().sharedMesh = mesh;
+        }
+    }
+
     // ---------- Places ----------
 
     /// <summary>
@@ -227,22 +298,81 @@ public sealed class LevelBuilder : MonoBehaviour
             box.transform.SetParent(parent, false);
             box.transform.localPosition = GroundAt(place.Cell) + Vector3.up * (size.y * 0.5f);
             box.transform.localScale = size;
-            box.GetComponent<MeshRenderer>().sharedMaterial = MarkerMaterial(color);
+            box.GetComponent<MeshRenderer>().sharedMaterial = PlainMaterial("Place Marker", color);
         }
     }
 
     /// <summary>
-    /// The player spawn goes to the start place, just off the ground, facing inland along the
-    /// road in (away from the map edge).
+    /// The player spawn goes on the main road at the start place, just above the surface, facing
+    /// along the road inland (away from the map edge, where the road starts).
     /// </summary>
-    void PlaceSpawn()
+    void PlaceSpawn(RoadShape mainRoad, int start)
     {
-        if (playerSpawn == null || Plan.Start == null)
+        if (playerSpawn == null)
             return;
 
-        var inward = Plan.Entry.Inward;
-        playerSpawn.position = transform.TransformPoint(GroundAt(Plan.Start.Cell) + Vector3.up);
-        playerSpawn.rotation = transform.rotation * Quaternion.LookRotation(new Vector3(inward.x, 0f, inward.y));
+        playerSpawn.position = transform.TransformPoint(mainRoad.Points[start] + Vector3.up);
+        playerSpawn.rotation = transform.rotation * Quaternion.LookRotation(Forward(mainRoad, start));
+    }
+
+    /// <summary>
+    /// The vehicle waits a little ahead of the player, pulled over on the right of the main road
+    /// and facing along it. The ground there is carved flat at the road's height (see
+    /// CarveRoads), so it doesn't tip. In play mode it spawns on the network from here when
+    /// the host starts.
+    /// </summary>
+    void PlaceVehicle(RoadShape mainRoad, int start)
+    {
+        if (vehicle == null)
+            return;
+
+        int i = Mathf.Min(start + VehicleAhead, mainRoad.Points.Length - 1);
+        var forward = Forward(mainRoad, i);
+        var right = new Vector3(forward.z, 0f, -forward.x);
+        var spot = mainRoad.Points[i] + right * (buildSettings.roadWidth * 0.5f + VehicleSideGap) + Vector3.up * VehicleDrop;
+
+        var position = transform.TransformPoint(spot);
+        var rotation = transform.rotation * Quaternion.LookRotation(forward);
+        vehicle.SetPositionAndRotation(position, rotation);
+
+        // The body has to move too: with interpolation on, physics copies the body's pose back onto
+        // the transform every frame. Velocity only applies to a dynamic body.
+        if (Application.isPlaying && vehicle.TryGetComponent<Rigidbody>(out var body))
+        {
+            body.position = position;
+            body.rotation = rotation;
+            if (!body.isKinematic)
+            {
+                body.linearVelocity = Vector3.zero;
+                body.angularVelocity = Vector3.zero;
+            }
+        }
+    }
+
+    /// <summary>The index of a road's sample nearest a world (x, z).</summary>
+    static int NearestPoint(RoadShape road, Vector2 worldXZ)
+    {
+        int nearest = 0;
+        float nearestDistance = float.MaxValue;
+        for (int i = 0; i < road.Points.Length; i++)
+        {
+            float d = Vector2.Distance(new Vector2(road.Points[i].x, road.Points[i].z), worldXZ);
+            if (d < nearestDistance)
+            {
+                nearestDistance = d;
+                nearest = i;
+            }
+        }
+        return nearest;
+    }
+
+    /// <summary>The flat direction along a road at a sample, from the sample before to the one after.</summary>
+    static Vector3 Forward(RoadShape road, int i)
+    {
+        var points = road.Points;
+        var span = points[Mathf.Min(i + 1, points.Length - 1)] - points[Mathf.Max(i - 1, 0)];
+        span.y = 0f;
+        return span.sqrMagnitude > 1e-6f ? span.normalized : Vector3.forward;
     }
 
     /// <summary>
@@ -256,11 +386,12 @@ public sealed class LevelBuilder : MonoBehaviour
         return new Vector3(world.x, height, world.y);
     }
 
-    Material MarkerMaterial(Color color)
+    /// <summary>A plain lit material in one colour, for stand-ins.</summary>
+    Material PlainMaterial(string name, Color color)
     {
         var shader = Shader.Find("Universal Render Pipeline/Lit");
         if (shader == null) shader = Shader.Find("Standard");
-        return Track(new Material(shader) { name = "Place Marker", color = color });
+        return Track(new Material(shader) { name = name, color = color });
     }
 
     /// <summary>

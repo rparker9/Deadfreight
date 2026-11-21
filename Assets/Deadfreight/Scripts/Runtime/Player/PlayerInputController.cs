@@ -83,11 +83,11 @@ public sealed class PlayerInputController : NetworkBehaviour
             }
         }
 
-        // Seated: WASD drives (if driver), Space brakes. The motor just publishes aim.
+        // Seated: WASD drives (if driver), Space brakes, Shift (Sprint) is the handbrake. The motor just publishes aim.
         if (seated && _seat.IsDriving)
         {
             Vector2 drive = paused ? Vector2.zero : g.Move.ReadValue<Vector2>();
-            _seat.SetDriverInput(drive.y, drive.x, !paused && g.Jump.IsPressed());
+            _seat.SetDriverInput(drive.y, drive.x, !paused && g.Jump.IsPressed(), !paused && g.Sprint.IsPressed());
         }
 
         // Keep moving the motor while paused (with no input) so gravity

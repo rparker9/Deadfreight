@@ -21,6 +21,18 @@ public static class PlanGrid
         for (int i = 0; i < values.Length; i++) values[i] = (values[i] - min) / range;
     }
 
+    /// <summary>Straight-line blend of the four cells around a fractional cell: cheaper than Bicubic, for searches.</summary>
+    public static float Bilinear(float[] values, int cellsX, int cellsY, Vector2 cell)
+    {
+        int x0 = Mathf.Clamp(Mathf.FloorToInt(cell.x), 0, cellsX - 2), y0 = Mathf.Clamp(Mathf.FloorToInt(cell.y), 0, cellsY - 2);
+        float tx = Mathf.Clamp01(cell.x - x0), ty = Mathf.Clamp01(cell.y - y0);
+        int i = y0 * cellsX + x0;
+
+        float south = Mathf.Lerp(values[i], values[i + 1], tx);
+        float north = Mathf.Lerp(values[i + cellsX], values[i + cellsX + 1], tx);
+        return Mathf.Lerp(south, north, ty);
+    }
+
     /// <summary>Catmull-Rom bicubic at a fractional cell: smooth, and exactly each cell's value at the cell.</summary>
     public static float Bicubic(float[] values, int cellsX, int cellsY, Vector2 cell)
     {

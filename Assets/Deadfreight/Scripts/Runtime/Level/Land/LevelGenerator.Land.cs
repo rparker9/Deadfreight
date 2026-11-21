@@ -26,14 +26,17 @@ public sealed partial class LevelGenerator
     /// </summary>
     void ShapeHills()
     {
-        var noise = new Noise2D(rng);
-        var hills = new float[cellCount];
+        Noise2D noise = new Noise2D(rng);
+        float[] hills = new float[cellCount];
+
         for (int y = 0; y < cellsY; y++)
-        for (int x = 0; x < cellsX; x++)
         {
-            float warpX = noise.Fbm(x + WarpOffset, y, WarpScale, WarpOctaves) * region.warp;
-            float warpY = noise.Fbm(x, y + WarpOffset, WarpScale, WarpOctaves) * region.warp;
-            hills[y * cellsX + x] = noise.Fbm(x + warpX, y + warpY, region.hillScale, HillOctaves);
+            for (int x = 0; x < cellsX; x++)
+            {
+                float warpX = noise.Fbm(x + WarpOffset, y, WarpScale, WarpOctaves) * region.warp;
+                float warpY = noise.Fbm(x, y + WarpOffset, WarpScale, WarpOctaves) * region.warp;
+                hills[y * cellsX + x] = noise.Fbm(x + warpX, y + warpY, region.hillScale, HillOctaves);
+            }
         }
 
         PlanGrid.Normalize(hills);

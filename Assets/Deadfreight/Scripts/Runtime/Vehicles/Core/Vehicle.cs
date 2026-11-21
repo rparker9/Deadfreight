@@ -22,8 +22,9 @@ public sealed partial class Vehicle : NetworkBehaviour
 {
     [Header("Body")]
     [Tooltip("Center of mass relative to the vehicle root in meters. Lower = harder to tip.")]
-    [SerializeField] private Vector3 centerOfMass = new Vector3(0f, 0.55f, 0f);
-    [Unit("Rad/s")] [SerializeField] private float maxAngularVelocity = 7f;
+    [SerializeField] private Vector3 centerOfMass = new Vector3(0f, 0.2f, 0f);
+    [Tooltip("Fastest it can spin (radians per second). Lower = drifts and crashes spin out less wildly.")]
+    [Unit("Rad/s")] [SerializeField] private float maxAngularVelocity = 5f;
 
     [Header("Events")]
     [Tooltip("Collisions at least this fast (m/s) raise Impacted")]

@@ -13,11 +13,12 @@ MonoBehaviour:
   m_Name: Drowned Bayou
   m_EditorClassIdentifier: Assembly-CSharp::RegionProfile
   notes: 'Cypress swamp along a slow river. Flat and wet: the challenge is water, not slopes.'
-  relief: 45
+  relief: 75
   hillScale: 70
   flatness: 1.2
   warp: 28
   landform: {fileID: 11400000, guid: 8759e9d06961c9842bcf50de687985b5, type: 2}
+  settlementDensity: 1
   waterCover: 0.22
   waterLevel: 0.16
   waterMaterial: {fileID: 2100000, guid: 5b78c42f4642d2c4398b9c0d3e7ffe50, type: 2}

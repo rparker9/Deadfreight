@@ -15,3 +15,14 @@ MonoBehaviour:
   cellSize: 50
   cellsX: 240
   cellsY: 240
+  borderWidth: 750
+  entrySpan: 0.6
+  startInset: 150
+  maxPlaceSlope: 0.12
+  siteMinDistance: 5500
+  siteMaxDistance: 7000
+  settlements: 12
+  placeSpacing: 550
+  maxRoadGrade: 0.12
+  roadGradeCost: 1
+  roadWaterCost: 30

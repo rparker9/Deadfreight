@@ -18,6 +18,7 @@ MonoBehaviour:
   flatness: 1.1
   warp: 28
   landform: {fileID: 11400000, guid: 1d461cd247f276c4993660f9d2cbb967, type: 2}
+  settlementDensity: 1
   waterCover: 0
   waterLevel: 0.15
   waterMaterial: {fileID: 2100000, guid: e315e38ce98c5524894278cc9f91dabf, type: 2}

@@ -346,7 +346,7 @@ MonoBehaviour:
   profile: {fileID: 11400000, guid: 760023d09df84031b75c1f47d6b162c7, type: 2}
   visual: {fileID: 7343824509230094705}
   isDriven: 0
-  hasBrake: 0
+  hasBrake: 1
 --- !u!1 &4729592491909138274
 GameObject:
   m_ObjectHideFlags: 0
@@ -882,7 +882,7 @@ MonoBehaviour:
   profile: {fileID: 11400000, guid: 760023d09df84031b75c1f47d6b162c7, type: 2}
   visual: {fileID: 6639173088673259291}
   isDriven: 0
-  hasBrake: 0
+  hasBrake: 1
 --- !u!1001 &1400776193200746512
 PrefabInstance:
   m_ObjectHideFlags: 0

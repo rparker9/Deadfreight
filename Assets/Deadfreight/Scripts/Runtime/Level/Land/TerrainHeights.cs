@@ -1,4 +1,5 @@
 // Scripts/Runtime/LevelBuild/TerrainHeights.cs
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
 
@@ -45,6 +46,57 @@ public sealed class TerrainHeights
             }
         });
         return terrain;
+    }
+
+    // ---------- roads ----------
+
+    /// <summary>
+    /// Cuts and fills the ground along the roads. Within <paramref name="flatHalfWidth"/> of a
+    /// road, the ground is set to the road's surface; over the next <paramref name="blendWidth"/>
+    /// metres it eases back to the land. Where roads meet, each sample follows the nearest road.
+    /// </summary>
+    public void CarveRoads(IReadOnlyList<RoadShape> roads, float flatHalfWidth, float blendWidth)
+    {
+        float reach = flatHalfWidth + blendWidth;
+        var distance = new float[Resolution, Resolution];   // metres to the nearest road sample
+        var target = new float[Resolution, Resolution];     // that sample's road surface height
+        Parallel.For(0, Resolution, r =>
+        {
+            for (int c = 0; c < Resolution; c++)
+                distance[r, c] = float.MaxValue;
+        });
+
+        // Stamp a disc of the road's height round every sample. Roads' samples are closer
+        // together than the terrain's, so the discs overlap into a band. One thread: discs overlap.
+        foreach (var road in roads)
+        foreach (var point in road.Points)
+        {
+            int c0 = Mathf.Max(0, Mathf.FloorToInt((point.x - reach) / StepX)), c1 = Mathf.Min(Resolution - 1, Mathf.CeilToInt((point.x + reach) / StepX));
+            int r0 = Mathf.Max(0, Mathf.FloorToInt((point.z - reach) / StepZ)), r1 = Mathf.Min(Resolution - 1, Mathf.CeilToInt((point.z + reach) / StepZ));
+            for (int r = r0; r <= r1; r++)
+            for (int c = c0; c <= c1; c++)
+            {
+                float dx = c * StepX - point.x, dz = r * StepZ - point.z;
+                float d = Mathf.Sqrt(dx * dx + dz * dz);
+                if (d < distance[r, c])
+                {
+                    distance[r, c] = d;
+                    target[r, c] = point.y;
+                }
+            }
+        }
+
+        Parallel.For(0, Resolution, r =>
+        {
+            for (int c = 0; c < Resolution; c++)
+            {
+                float d = distance[r, c];
+                if (d >= reach)
+                    continue;
+                float land = Mathf.SmoothStep(0f, 1f, (d - flatHalfWidth) / Mathf.Max(0.01f, blendWidth));    // 0 within the flat
+                Heights[r, c] = Mathf.Lerp(target[r, c], Heights[r, c], land);
+            }
+        });
     }
 
     // ---------- to the terrain ----------

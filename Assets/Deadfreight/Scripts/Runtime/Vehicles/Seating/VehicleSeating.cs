@@ -100,10 +100,10 @@ public sealed class VehicleSeating : Interactable, IVehicleControlSource
     }
 
     /// <summary>Driver input from PlayerSeating. Ignored unless that client is in a driver seat.</summary>
-    public void ServerDriverInput(ulong clientId, float throttle, float steer, bool brake)
+    public void ServerDriverInput(ulong clientId, float throttle, float steer, bool brake, float handbrake)
     {
         if (!IsServer || !IsDriver(clientId)) return;
-        _driverControls = new VehicleControls(throttle, steer, brake ? 1f : 0f);
+        _driverControls = new VehicleControls(throttle, steer, brake ? 1f : 0f, handbrake);
     }
 
     /// <summary>IVehicleControlSource: called by the vehicle every physics step.</summary>

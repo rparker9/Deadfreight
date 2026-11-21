@@ -21,6 +21,9 @@ public sealed class VehicleWheel : VehicleModule
     [Tooltip("The brake acts on this wheel")]
     [SerializeField] private bool hasBrake = false;
 
+    [Tooltip("The handbrake makes this wheel slide sideways (Drift Grip in the profile). Tick on the rear wheels to drift.")]
+    [SerializeField] private bool slidesOnHandbrake = false;
+
     public override int Order => VehicleModuleOrder.Wheels;
 
     // ---- Inputs (set by other modules each step) ----
@@ -28,10 +31,13 @@ public sealed class VehicleWheel : VehicleModule
     public float DriveForce { get; set; }
     /// <summary>Brake amount 0..1. Set by VehicleBrakes.</summary>
     public float BrakeInput { get; set; }
+    /// <summary>Handbrake amount 0..1: how much of its sideways grip this wheel has lost. Set by VehicleBrakes.</summary>
+    public float HandbrakeInput { get; set; }
 
     // ---- Read-only state ----
     public bool IsDriven => isDriven;
     public bool HasBrake => hasBrake;
+    public bool SlidesOnHandbrake => slidesOnHandbrake;
     public bool IsGrounded { get; private set; }
     /// <summary>Force the wheel is carrying right now (N). Useful for sounds, dust, stuck checks.</summary>
     public float Load { get; private set; }
@@ -94,8 +100,10 @@ public sealed class VehicleWheel : VehicleModule
         float sideSpeed = Vector3.Dot(velocity, side);
 
         // Sideways: cancel slip, up to what friction allows (so hard turns / tipping can still slide).
+        // The handbrake takes most of that grip away, so the wheel drifts.
+        float driftGrip = Mathf.Lerp(1f, profile.driftGrip, HandbrakeInput);
         float sideNeeded = -sideSpeed * massShare / dt;
-        float sideMax = profile.lateralFriction * grip * Load;
+        float sideMax = profile.lateralFriction * grip * driftGrip * Load;
         float sideForce = Mathf.Clamp(sideNeeded, -sideMax, sideMax);
 
         // Rolling: resist motion (+brake), but never push it backwards (clamped to what stops it).

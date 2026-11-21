@@ -12,7 +12,9 @@ public abstract class VehiclePower : VehicleModule
 
     public override void Simulate(in VehicleControls controls, ref VehicleNetState state, float dt)
     {
-        float force = ComputeForce(controls.Throttle, Vehicle.ForwardSpeed, dt);
+        // Braking cuts the power, so the brakes never fight the engine.
+        float throttle = controls.Brake > 0f ? 0f : controls.Throttle;
+        float force = ComputeForce(throttle, Vehicle.ForwardSpeed, dt);
 
         int driven = 0;
         foreach (var wheel in Vehicle.Wheels)

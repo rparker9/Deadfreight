@@ -2,8 +2,9 @@
 using UnityEngine;
 
 /// <summary>
-/// How LevelBuilder turns a plan into the 3D level, whatever its region: resolutions and the
-/// terrain material. What each region looks like is in its RegionProfile.
+/// How LevelBuilder turns a plan into the 3D level, whatever its region: resolutions, the
+/// roads' size, and the terrain and road materials. What each region looks like is in its
+/// RegionProfile.
 /// </summary>
 [CreateAssetMenu(fileName = "BuildSettings", menuName = "Level/Build Settings")]
 public sealed class BuildSettings : ScriptableObject
@@ -17,15 +18,25 @@ public sealed class BuildSettings : ScriptableObject
     [Tooltip("Ground-paint texels per side, where the zones' layers are painted: 256, 512, 1024 or 2048. 512 is about 16 m per texel on an 8 km level; zones blend over a cell (50 m) anyway.")]
     public int alphamapResolution = 512;
 
+    [Header("Roads")]
+    [Unit("m"), Tooltip("Width of the road surface.")]
+    public float roadWidth = 6f;
+    [Unit("m"), Tooltip("Beside the road, the width over which the carved ground eases back to the land. Wider = gentler cuttings and embankments.")]
+    public float roadShoulder = 12f;
+
     [Header("Look (optional)")]
     [Tooltip("Terrain material, e.g. URP's Terrain/Lit. Empty = URP's default.")]
     public Material terrainMaterial;
+    [Tooltip("Road surface material. Its texture runs one tile per road width along the road. Empty = plain dirt colour.")]
+    public Material roadMaterial;
 
     /// <summary>Snaps the resolutions to what Unity accepts.</summary>
     void OnValidate()
     {
         heightmapResolution = Closest(HeightmapResolutions, heightmapResolution);
         alphamapResolution = Closest(AlphamapResolutions, alphamapResolution);
+        roadWidth = Mathf.Max(1f, roadWidth);
+        roadShoulder = Mathf.Max(0f, roadShoulder);
     }
 
     static int Closest(int[] options, int value)
