@@ -52,10 +52,9 @@ public sealed class PlayerWeapon : NetworkBehaviour
     [Header("References")]
     [Tooltip("Shot origin. Use the camera rig's Pitch Pivot (it exists on every machine).")]
     [SerializeField] private Transform eye;
-    [Tooltip("What OTHER players see shots come from: the gun on the body's hand bone. Optional.")]
+    [Tooltip("Fallback for where OTHER players see shots come from. Replaced by the gun model's muzzle when one spawns.")]
     [SerializeField] private Transform muzzle;
-    [Tooltip("What YOU see shots come from in first person: a point in front of the camera, lower right. " +
-             "Optional; falls back to Muzzle.")]
+    [Tooltip("Fallback for where YOU see shots come from. Replaced by the first-person gun model's muzzle when one spawns.")]
     [SerializeField] private Transform viewMuzzle;
     [SerializeField] private PlayerCameraController cameraController;
 
@@ -77,7 +76,12 @@ public sealed class PlayerWeapon : NetworkBehaviour
     // ---- All machines ----
     private PlayerState _state;
     private PlayerSeating _seating;
-    private PlayerWeaponView _view;
+
+    // ---- Synced presentation state (owner writes; the views read it) ----
+    private readonly NetworkVariable<bool> _aiming = new(
+        false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+    private readonly NetworkVariable<bool> _reloading = new(
+        false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
 
     // ---- Owner (predicted) ----
     private int _ammo;
@@ -100,6 +104,24 @@ public sealed class PlayerWeapon : NetworkBehaviour
     public int Ammo => _ammo;
     public bool IsReloading => _reloadEndTime >= 0f;
 
+    // ---- For the views (all machines) ----
+    /// <summary>Aiming down sights (synced).</summary>
+    public bool IsAiming => _aiming.Value;
+    /// <summary>Reloading as everyone sees it: exact on the owner, synced for everyone else.</summary>
+    public bool IsReloadingShown => IsOwner ? IsReloading : _reloading.Value;
+
+    /// <summary>Gun out: has a weapon, hands free, and not driving. Works on every machine.</summary>
+    public bool IsArmed
+    {
+        get
+        {
+            if (weapon == null) return false;
+            if (_state.HeldObject.Value.TryGet(out NetworkObject _)) return false;
+            if (_seating != null && _seating.IsDriving) return false;
+            return true;
+        }
+    }
+
     // ============================================================
     // LIFECYCLE
     // ============================================================
@@ -108,7 +130,6 @@ public sealed class PlayerWeapon : NetworkBehaviour
     {
         _state = GetComponent<PlayerState>();
         _seating = GetComponent<PlayerSeating>();
-        _view = GetComponent<PlayerWeaponView>();
         if (cameraController == null)
             cameraController = GetComponent<PlayerCameraController>();
     }
@@ -129,6 +150,7 @@ public sealed class PlayerWeapon : NetworkBehaviour
     private void Update()
     {
         if (!IsOwner || weapon == null) return;
+        PublishViewState();
 
         if (IsReloading && Time.time >= _reloadEndTime)
         {
@@ -160,6 +182,22 @@ public sealed class PlayerWeapon : NetworkBehaviour
     // ============================================================
 
     public void SetTrigger(bool held) => _triggerHeld = held;
+
+    /// <summary>Aim down sights (only while armed).</summary>
+    public void SetAiming(bool aiming)
+    {
+        if (!IsOwner) return;
+        bool value = aiming && IsArmed;
+        if (_aiming.Value != value) _aiming.Value = value;
+    }
+
+    /// <summary>Called by the views: the spawned gun model's muzzle (first person for you, body for others).</summary>
+    public void SetModelMuzzle(Transform modelMuzzle, bool firstPerson)
+    {
+        if (modelMuzzle == null) return;
+        if (firstPerson) viewMuzzle = modelMuzzle;
+        else muzzle = modelMuzzle;
+    }
 
     public void Reload()
     {
@@ -395,15 +433,18 @@ public sealed class PlayerWeapon : NetworkBehaviour
     // HELPERS
     // ============================================================
 
-    /// <summary>
-    /// Where shots visually start: the gun model's muzzle (PlayerWeaponView) if there is one,
-    /// otherwise the view muzzle for the owner and the body's muzzle for everyone else.
-    /// </summary>
+    /// <summary>Owner: keep the synced aiming/reloading in step (NetworkVariables only send on change).</summary>
+    private void PublishViewState()
+    {
+        if (!IsArmed && _aiming.Value) _aiming.Value = false;
+        if (_reloading.Value != IsReloading) _reloading.Value = IsReloading;
+    }
+
+    /// <summary>Where shots visually start: the first-person muzzle for the owner, the body's for everyone else.</summary>
     private Vector3 MuzzlePosition
     {
         get
         {
-            if (_view != null && _view.TryGetMuzzle(out Vector3 modelMuzzle)) return modelMuzzle;
             if (IsOwner && viewMuzzle != null) return viewMuzzle.position;
             if (muzzle != null) return muzzle.position;
             return EyePosition;

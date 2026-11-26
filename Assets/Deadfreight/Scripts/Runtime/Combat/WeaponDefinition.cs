@@ -56,11 +56,12 @@ public sealed class WeaponDefinition : ScriptableObject
     public GameObject projectileVisual;
 
     [Header("View: Model")]
-    [Tooltip("Gun model with a WeaponModel component. Spawned in front of the camera (you) and in the body's right hand (others).")]
+    [Tooltip("Gun prefab with WeaponModel on its root (root = the handle, +Z down the barrel). " +
+             "Spawned in front of your camera, and in Hand Socket on other players' bodies.")]
     public WeaponModel modelPrefab;
 
     [Header("View: First Person")]
-    [Tooltip("Gun position relative to the camera when not aiming (right, up, forward)")]
+    [Tooltip("Where the gun's handle sits relative to the camera when not aiming (right, up, forward)")]
     [Unit("m")] public Vector3 hipPosition = new(0.18f, -0.16f, 0.4f);
     [Tooltip("How far in front of the eye the sight sits when aiming down sights")]
     [Unit("m")] [Min(0.05f)] public float adsDistance = 0.25f;
