@@ -34,12 +34,25 @@ public sealed class PlayerAnimator : NetworkBehaviour
     [Tooltip("Bool: true while in a vehicle seat")]
     [SerializeField] private string isSeatedParam = "IsSeated";
 
+    [Tooltip("Float: clip playback rate, so feet match the ground (use as the Locomotion state's Speed Multiplier)")]
+    [SerializeField] private string locomotionSpeedParam = "LocomotionSpeed";
+
+    [Header("Locomotion")]
+    [Tooltip("Walk, run and sprint speeds that map to blend 1, 2 and 3. Empty = taken from PlayerMotor.")]
+    [SerializeField] private MovementSettings movementSettings;
+    [Tooltip("How fast the walk clips travel. Read it from Walk01_Forward [RM]: Inspector > Animation > Average Velocity (z).")]
+    [Unit("m/s")] [SerializeField] private float walkClipSpeed = 1.5f;
+    [Tooltip("How fast the run clips travel (Run01_Forward [RM], same place)")]
+    [Unit("m/s")] [SerializeField] private float runClipSpeed = 4.0f;
+    [Tooltip("How fast the sprint clips travel (Sprint01_Forward [RM], same place)")]
+    [Unit("m/s")] [SerializeField] private float sprintClipSpeed = 6.5f;
+    [Tooltip("Limits on the playback rate. Hitting a limit means your movement speed and the clip are far apart.")]
+    [SerializeField] private Vector2 playbackRateRange = new(0.6f, 1.6f);
+
     [Header("Tuning")]
-    [Tooltip("Speed (m/s) that counts as a walk. MoveSpeed = speed / this: 0 idle, 1 walk, up to 2 run.")]
-    [SerializeField] private float walkSpeedReference = 4.5f;
-    [Tooltip("Smooth speed changes (seconds, 0 = instant)")]
+    [Tooltip("Smooth gait changes (seconds, 0 = instant)")]
     [SerializeField] private float speedSmoothTime = 0.1f;
-    [Tooltip("Smooth movement direction (seconds, 0 = instant)")]
+    [Tooltip("Smooth the blend position (seconds, 0 = instant)")]
     [SerializeField] private float inputDampTime = 0.1f;
     [Tooltip("Body turn speed (degrees/second, 0 = instant)")]
     [SerializeField] private float bodyRotationSpeed = 720f;
@@ -54,9 +67,10 @@ public sealed class PlayerAnimator : NetworkBehaviour
     private int _moveSpeed, _moveX, _moveY;
     private int _isGrounded, _isJumping, _isCrouching, _isSprinting;
     private int _holdPose, _isSeated;
+    private int _locomotionSpeed;
 
-    private float _speed;
-    private float _speedVelocity;
+    private float _gait;            // 0 idle, 1 walk, 2 run, 3 sprint (smoothed)
+    private float _gaitVelocity;
     private bool _ownerBodyVisible;
 
     // ============================================================
@@ -76,7 +90,7 @@ public sealed class PlayerAnimator : NetworkBehaviour
         }
 
         // Locomotion is required; the rest is optional.
-        _moveSpeed = Param(moveSpeedParam, required: true);
+        _moveSpeed = Param(moveSpeedParam);
         _moveX = Param(moveXParam, required: true);
         _moveY = Param(moveYParam, required: true);
         _isGrounded = Param(isGroundedParam);
@@ -85,6 +99,10 @@ public sealed class PlayerAnimator : NetworkBehaviour
         _isSprinting = Param(isSprintingParam);
         _holdPose = Param(holdPoseParam);
         _isSeated = Param(isSeatedParam);
+        _locomotionSpeed = Param(locomotionSpeedParam);
+
+        if (movementSettings == null && TryGetComponent(out PlayerMotor motor))
+            movementSettings = motor.Settings;
     }
 
     public override void OnNetworkSpawn()
@@ -114,8 +132,7 @@ public sealed class PlayerAnimator : NetworkBehaviour
     /// <summary>Everyone else: full locomotion from synced state.</summary>
     private void UpdateRemote(bool instant)
     {
-        SetMoveDirection(_state.MoveInput.Value, instant);
-        SetSpeed(_state.Speed.Value, instant);
+        SetLocomotion(instant);
 
         SetBool(_isGrounded, _state.IsGrounded.Value);
         SetBool(_isJumping, _state.IsJumping.Value);
@@ -145,48 +162,95 @@ public sealed class PlayerAnimator : NetworkBehaviour
     // PIECES
     // ============================================================
 
-    /// <summary>Direction only (normalized) for a 2D directional blend tree.</summary>
-    private void SetMoveDirection(Vector2 input, bool instant)
+    /// <summary>
+    /// The locomotion blend tree is rings around idle: walk at radius 1, run at 2, sprint at 3 (front only).
+    /// MoveX/MoveY = movement direction relative to the BODY, scaled by gait (0 idle, 1 walk, 2 run, 3 sprint).
+    /// MoveSpeed = gait alone (for transitions). LocomotionSpeed = playback rate so feet don't slide.
+    /// </summary>
+    private void SetLocomotion(bool instant)
     {
-        if (_moveX == 0 || _moveY == 0) return;
-        Vector2 dir = input.sqrMagnitude > Epsilon * Epsilon ? input.normalized : Vector2.zero;
-
-        if (instant || inputDampTime <= 0f)
-        {
-            _animator.SetFloat(_moveX, dir.x);
-            _animator.SetFloat(_moveY, dir.y);
-        }
-        else
-        {
-            _animator.SetFloat(_moveX, dir.x, inputDampTime, Time.deltaTime);
-            _animator.SetFloat(_moveY, dir.y, inputDampTime, Time.deltaTime);
-        }
-    }
-
-    /// <summary>Speed as a fraction of walking speed: 0 idle, 1 walk, up to 2 run.</summary>
-    private void SetSpeed(float metersPerSecond, bool instant)
-    {
-        if (_moveSpeed == 0) return;
-        float target = Mathf.Clamp(metersPerSecond / Mathf.Max(walkSpeedReference, 0.01f), 0f, 2f);
+        float speed = _state.Speed.Value;
+        float target = GaitFromSpeed(speed);
 
         if (instant || speedSmoothTime <= 0f)
         {
-            _speed = target;
-            _speedVelocity = 0f;
+            _gait = target;
+            _gaitVelocity = 0f;
         }
         else
         {
-            _speed = Mathf.SmoothDamp(_speed, target, ref _speedVelocity, speedSmoothTime);
+            _gait = Mathf.SmoothDamp(_gait, target, ref _gaitVelocity, speedSmoothTime);
         }
 
         // Snap tiny values to 0 so the blend tree truly idles.
-        if (_speed < Epsilon)
+        if (_gait < Epsilon)
         {
-            _speed = 0f;
-            _speedVelocity = 0f;
+            _gait = 0f;
+            _gaitVelocity = 0f;
         }
 
-        _animator.SetFloat(_moveSpeed, _speed);
+        Vector2 blend = BodyRelativeDirection() * _gait;
+
+        if (instant || inputDampTime <= 0f)
+        {
+            _animator.SetFloat(_moveX, blend.x);
+            _animator.SetFloat(_moveY, blend.y);
+        }
+        else
+        {
+            _animator.SetFloat(_moveX, blend.x, inputDampTime, Time.deltaTime);
+            _animator.SetFloat(_moveY, blend.y, inputDampTime, Time.deltaTime);
+        }
+
+        if (_moveSpeed != 0) _animator.SetFloat(_moveSpeed, _gait);
+        if (_locomotionSpeed != 0) _animator.SetFloat(_locomotionSpeed, PlaybackRate(speed, _gait));
+    }
+
+    /// <summary>
+    /// Move input is relative to the aim yaw, but the body turns toward the aim over a few frames.
+    /// Re-express it relative to where the body actually faces, so strafes stay correct while turning.
+    /// </summary>
+    private Vector2 BodyRelativeDirection()
+    {
+        Vector2 input = _state.MoveInput.Value;
+        if (input.sqrMagnitude < Epsilon * Epsilon) return Vector2.zero;
+        if (characterModelRoot == null) return input.normalized;
+
+        Vector3 world = Quaternion.Euler(0f, _state.AimYaw.Value, 0f) * new Vector3(input.x, 0f, input.y);
+        Vector3 local = Quaternion.Inverse(characterModelRoot.rotation) * world;
+        return new Vector2(local.x, local.z).normalized;
+    }
+
+    /// <summary>0 at rest, 1 at walk speed, 2 at run speed, 3 at sprint speed (linear in between).</summary>
+    private float GaitFromSpeed(float speed)
+    {
+        float walk = movementSettings != null ? movementSettings.walkSpeed : 3f;
+        float run = movementSettings != null ? movementSettings.runSpeed : 5.5f;
+        float sprint = movementSettings != null ? movementSettings.sprintSpeed : 8f;
+        walk = Mathf.Max(walk, 0.01f);
+        run = Mathf.Max(run, walk + 0.01f);
+        sprint = Mathf.Max(sprint, run + 0.01f);
+
+        if (speed <= walk) return speed / walk;
+        if (speed <= run) return 1f + (speed - walk) / (run - walk);
+        return Mathf.Min(3f, 2f + (speed - run) / (sprint - run));
+    }
+
+    /// <summary>
+    /// Actual speed / the speed the blended clips travel at, so feet match the ground.
+    /// Below gait 1 the tree blends walk with idle, so the clips' speed scales down with gait.
+    /// </summary>
+    private float PlaybackRate(float speed, float gait)
+    {
+        if (gait < 0.1f) return 1f;
+
+        float clipSpeed;
+        if (gait <= 1f) clipSpeed = walkClipSpeed * gait;
+        else if (gait <= 2f) clipSpeed = Mathf.Lerp(walkClipSpeed, runClipSpeed, gait - 1f);
+        else clipSpeed = Mathf.Lerp(runClipSpeed, sprintClipSpeed, gait - 2f);
+
+        if (clipSpeed < 0.01f) return 1f;
+        return Mathf.Clamp(speed / clipSpeed, playbackRateRange.x, playbackRateRange.y);
     }
 
     /// <summary>

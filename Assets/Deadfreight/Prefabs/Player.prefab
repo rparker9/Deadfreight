@@ -375,7 +375,12 @@ MonoBehaviour:
   isSprintingParam: IsSprinting
   holdPoseParam: HoldPose
   isSeatedParam: IsSeated
-  walkSpeedReference: 4.5
+  locomotionSpeedParam: LocomotionSpeed
+  movementSettings: {fileID: 11400000, guid: 95907c61c2f7e7745a1d4580243751cb, type: 2}
+  walkClipSpeed: 1.8
+  runClipSpeed: 3.795
+  sprintClipSpeed: 5.693
+  playbackRateRange: {x: 0.8, y: 1.25}
   speedSmoothTime: 0.05
   inputDampTime: 0.05
   bodyRotationSpeed: 720

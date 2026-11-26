@@ -85,11 +85,11 @@ public sealed class PlayerInputController : NetworkBehaviour
             }
         }
 
-        // Shooting: not while paused, driving, or carrying something. Passengers can shoot.
+        // Shooting: not while paused, driving, carrying something, or sprinting. Passengers can shoot.
         if (_weapon != null)
         {
             bool holding = _interactor != null && _interactor.CanThrow;
-            bool canShoot = !paused && !(seated && _seat.IsDriving) && !holding;
+            bool canShoot = !paused && !(seated && _seat.IsDriving) && !holding && !_motor.IsSprinting;
             _weapon.SetTrigger(canShoot && g.Fire.IsPressed());
             if (canShoot && g.Reload.triggered) _weapon.Reload();
         }
@@ -106,13 +106,13 @@ public sealed class PlayerInputController : NetworkBehaviour
         bool canMove = !paused && !seated;
         Vector2 move = canMove ? g.Move.ReadValue<Vector2>() : Vector2.zero;
         bool jump = canMove && g.Jump.IsPressed();
-        bool sprint = canMove && g.Sprint.IsPressed();
+        bool run = canMove && g.Sprint.IsPressed();   // Shift: run; held while moving forward, becomes sprint
         bool crouch = canMove && g.Crouch.IsPressed();
 
         float yaw = _camera != null ? _camera.WorldYaw : transform.eulerAngles.y;
         float pitch = _camera != null ? _camera.PitchDegrees : 0f;
 
-        _motor.Move(move, yaw, pitch, jump, sprint, crouch, Time.deltaTime);
+        _motor.Move(move, yaw, pitch, jump, run, crouch, Time.deltaTime);
     }
 
     // ============================================================

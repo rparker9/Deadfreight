@@ -23,6 +23,9 @@ public sealed class PlayerMotor : NetworkBehaviour, ICharacterController
 {
     [SerializeField] private MovementSettings settings;
 
+    /// <summary>Walk/run/sprint speeds etc. Read by PlayerAnimator to map speed to the locomotion blend.</summary>
+    public MovementSettings Settings => settings;
+
     [Tooltip("Turns the view when the ground you stand on turns (e.g. a wagon taking a corner)")]
     [SerializeField] private bool turnWithPlatform = true;
 
@@ -33,7 +36,14 @@ public sealed class PlayerMotor : NetworkBehaviour, ICharacterController
     // Latest input (set every frame by PlayerInputController, used every physics step)
     private Vector2 _move;
     private float _yaw;
-    private bool _jump, _sprint, _crouch;
+    private bool _jump, _run, _crouch;
+
+    // Sprint: Shift held while moving forward for sprintDelay seconds
+    private float _sprintHoldTime;
+    private bool _sprinting;
+
+    /// <summary>Owner: actually sprinting this frame (not just holding Shift).</summary>
+    public bool IsSprinting => _sprinting;
 
     // Moving ground (platform) we're standing on
     private Rigidbody _platform;
@@ -88,17 +98,34 @@ public sealed class PlayerMotor : NetworkBehaviour, ICharacterController
     // ============================================================
 
     /// <summary>Store this frame's input; KCC applies it in the next physics step. Also publishes state.</summary>
-    public void Move(Vector2 move, float yaw, float pitch, bool jump, bool sprint, bool crouch, float dt)
+    public void Move(Vector2 move, float yaw, float pitch, bool jump, bool run, bool crouch, float dt)
     {
         if (!IsOwner || settings == null) return;
 
         _move = Vector2.ClampMagnitude(move, 1f);
         _yaw = yaw;
         _jump = jump;
-        _sprint = sprint;
+        _run = run;
         _crouch = crouch;
+        UpdateSprint(dt);
 
         PublishState(pitch);
+    }
+
+    /// <summary>
+    /// Running (Shift) turns into sprinting after Shift has been held for sprintDelay while moving forward.
+    /// Letting go of Shift, crouching, or no longer pushing forward drops straight back (and restarts the delay).
+    /// </summary>
+    private void UpdateSprint(float dt)
+    {
+        bool pushingForward = _move.y >= settings.sprintMinForward;
+
+        if (_run && pushingForward && !_crouch && IsActive)
+            _sprintHoldTime += dt;
+        else
+            _sprintHoldTime = 0f;
+
+        _sprinting = _sprintHoldTime >= settings.sprintDelay;
     }
 
     private void PublishState(float pitch)
@@ -112,7 +139,7 @@ public sealed class PlayerMotor : NetworkBehaviour, ICharacterController
         _state.IsGrounded.Value = !active || _motor.GroundingStatus.IsStableOnGround;
         _state.IsJumping.Value = active && Vector3.Dot(selfVelocity, Vector3.up) > 1f;
         _state.IsCrouching.Value = active && _crouch;
-        _state.IsSprinting.Value = active && _sprint;
+        _state.IsSprinting.Value = active && _sprinting;
         _state.AimYaw.Value = _yaw;
         _state.AimPitch.Value = pitch;
     }
@@ -135,7 +162,10 @@ public sealed class PlayerMotor : NetworkBehaviour, ICharacterController
 
         // ---- Horizontal: accelerate toward the input direction ----
         bool hasInput = _move.sqrMagnitude > 0.0001f;
-        float targetSpeed = _crouch ? settings.crouchSpeed : _sprint ? settings.sprintSpeed : settings.walkSpeed;
+        float targetSpeed = _crouch ? settings.crouchSpeed
+                          : _sprinting ? settings.sprintSpeed
+                          : _run ? settings.runSpeed
+                          : settings.walkSpeed;
         Vector3 desired = Quaternion.Euler(0f, _yaw, 0f) * new Vector3(_move.x, 0f, _move.y) * targetSpeed;
 
         float accel = grounded
