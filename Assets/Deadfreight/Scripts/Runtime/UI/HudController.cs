@@ -2,16 +2,19 @@ using TMPro;
 using UnityEngine;
 
 /// <summary>
-/// Displays interaction prompts for the local player.
-/// Reads state directly from the local PlayerInteractor each frame (no events needed).
+/// Displays interaction prompts and ammo for the local player.
+/// Reads state directly from the local PlayerInteractor / PlayerWeapon each frame (no events needed).
 /// </summary>
 public sealed class HUDController : MonoBehaviour
 {
     [Header("UI References")]
     [SerializeField] private GameObject root;
     [SerializeField] private TMP_Text promptText;
+    [Tooltip("Optional. Shown separately from the prompt.")]
+    [SerializeField] private TMP_Text ammoText;
 
     private PlayerInteractor _interactor;
+    private PlayerWeapon _weapon;
 
     private void Awake()
     {
@@ -21,6 +24,8 @@ public sealed class HUDController : MonoBehaviour
 
     private void Update()
     {
+        UpdateAmmo();
+
         // Find local player if we don't have one
         if (_interactor == null)
         {
@@ -43,6 +48,20 @@ public sealed class HUDController : MonoBehaviour
 
         promptText.text = prompt;
         SetVisible(true);
+    }
+
+    private void UpdateAmmo()
+    {
+        if (ammoText == null) return;
+
+        if (_weapon == null && _interactor != null)
+            _weapon = _interactor.GetComponent<PlayerWeapon>();
+
+        bool show = _weapon != null && _weapon.Weapon != null;
+        ammoText.gameObject.SetActive(show);
+        if (!show) return;
+
+        ammoText.text = _weapon.IsReloading ? "Reloading..." : $"{_weapon.Ammo} / {_weapon.Weapon.magazineSize}";
     }
 
     private PlayerInteractor FindLocalInteractor()

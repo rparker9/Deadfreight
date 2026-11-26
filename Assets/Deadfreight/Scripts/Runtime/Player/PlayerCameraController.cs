@@ -42,6 +42,17 @@ public sealed class PlayerCameraController : NetworkBehaviour
     private Quaternion? _reference;
     private float _yawLimit = 180f;
 
+    [Header("Recoil")]
+    [Tooltip("How fast the view moves into a kick. Higher = punchier.")]
+    [SerializeField] private float recoilSnappiness = 25f;
+    [Tooltip("How fast the kick settles back to where you were aiming. 0 = never (kick is permanent).")]
+    [SerializeField] private float recoilReturnSpeed = 8f;
+
+    // Recoil is an offset on top of _yaw/_pitch, so it can ease in and settle back.
+    // x = pitch, y = yaw (degrees). Target is where the kick wants to be; current eases toward it.
+    private Vector2 _recoilTarget;
+    private Vector2 _recoilCurrent;
+
     [Header("Third Person")]
     [SerializeField] private float thirdPersonCollisionRadius = 0.25f;
     [SerializeField] private LayerMask thirdPersonCollisionMask = ~0;
@@ -195,17 +206,18 @@ public sealed class PlayerCameraController : NetworkBehaviour
         if (_reference.HasValue && _yawLimit < 180f)
             _yaw = Mathf.Clamp(Mathf.DeltaAngle(0f, _yaw), -_yawLimit, _yawLimit);
 
-        // Yaw: world-space horizontal rotation (or relative to the seat)
+        // Yaw: world-space horizontal rotation (or relative to the seat), plus recoil
         if (yawPivot != null)
         {
             Quaternion baseRotation = _reference ?? Quaternion.identity;
-            yawPivot.rotation = baseRotation * Quaternion.Euler(0f, _yaw, 0f);
+            yawPivot.rotation = baseRotation * Quaternion.Euler(0f, _yaw + _recoilCurrent.y, 0f);
         }
 
-        // Pitch: Local-space vertical rotation
+        // Pitch: Local-space vertical rotation, plus recoil (kept inside the pitch limits)
         if (pitchPivot != null)
         {
-            pitchPivot.localRotation = Quaternion.Euler(_pitch, 0f, 0f);
+            float pitch = Mathf.Clamp(_pitch + _recoilCurrent.x, pitchMin, pitchMax);
+            pitchPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
         }
     }
 
@@ -311,6 +323,8 @@ public sealed class PlayerCameraController : NetworkBehaviour
     {
         if (!IsOwner || playerCamera == null) return;
 
+        UpdateRecoil(Time.deltaTime);
+
         Transform cam = playerCamera.transform;
         bool blending = _blendProgress < 1f;
 
@@ -357,16 +371,28 @@ public sealed class PlayerCameraController : NetworkBehaviour
     }
 
     /// <summary>
-    /// Add recoil/camera shake (useful for weapon feedback)
+    /// Kick the view (weapon recoil). Negative pitch = up. The kick eases in over a few frames
+    /// and settles back to where you were aiming (see UpdateRecoil).
     /// </summary>
     public void AddRecoil(float pitchRecoil, float yawRecoil)
     {
         if (!IsOwner) return;
+        _recoilTarget += new Vector2(pitchRecoil, yawRecoil);
+    }
 
-        _pitch += pitchRecoil;
-        _pitch = Mathf.Clamp(_pitch, pitchMin, pitchMax);
+    /// <summary>Target decays toward zero; current chases target. Both frame-rate independent.</summary>
+    private void UpdateRecoil(float dt)
+    {
+        if (_recoilTarget == Vector2.zero && _recoilCurrent == Vector2.zero) return;
 
-        _yaw += yawRecoil;
+        if (recoilReturnSpeed > 0f)
+            _recoilTarget *= Mathf.Exp(-recoilReturnSpeed * dt);
+
+        _recoilCurrent = Vector2.Lerp(_recoilCurrent, _recoilTarget, 1f - Mathf.Exp(-recoilSnappiness * dt));
+
+        // Snap to rest once it's imperceptible, so this stops running.
+        if (_recoilTarget.sqrMagnitude < 1e-6f && _recoilCurrent.sqrMagnitude < 1e-6f)
+            _recoilTarget = _recoilCurrent = Vector2.zero;
 
         UpdateTransforms();
     }

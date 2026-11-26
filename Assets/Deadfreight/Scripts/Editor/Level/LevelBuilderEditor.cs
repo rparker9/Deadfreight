@@ -26,11 +26,10 @@ public sealed class LevelBuilderEditor : Editor
         using (new EditorGUILayout.HorizontalScope())
         {
             if (GUILayout.Button("Build")) builder.Build();
-            if (GUILayout.Button("Random seed + Build"))
+            if (GUILayout.Button("Random seed"))
             {
                 Undo.RecordObject(builder, "Random level seed");
                 builder.Seed = Random.Range(0, int.MaxValue);
-                builder.Build();
             }
             if (GUILayout.Button("Clear")) builder.Clear();
         }

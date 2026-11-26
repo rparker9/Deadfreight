@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 42ef750dc922e584390b93481fae8082, type: 3}
   m_Name: Bayou River Valley
   m_EditorClassIdentifier: Assembly-CSharp::RiverValley
-  floorWidth: 0.35
+  floorWidth: 0.45
   wallWidth: 0.25
   meander: 0.3
   floorRoughness: 0.12

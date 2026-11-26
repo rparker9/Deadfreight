@@ -93,7 +93,7 @@ MonoBehaviour:
   exitPoint: {fileID: 4398756946515265718}
   yawLimit: 120
   inheritTilt: 1
-  thirdPerson: 1
+  thirdPerson: 0
   cameraFocus: {fileID: 0}
   cameraHeight: 2
   cameraDistance: 6

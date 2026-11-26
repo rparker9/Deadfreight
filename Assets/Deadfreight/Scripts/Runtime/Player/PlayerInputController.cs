@@ -4,7 +4,7 @@ using UnityEngine.InputSystem;
 
 /// <summary>
 /// OWNER-ONLY: The single source of input for the local player.
-/// Each frame: look -> camera, E/Q -> interactor (or seat, while seated), movement -> motor.
+/// Each frame: look -> camera, E/Q -> interactor (or seat, while seated), LMB/R -> weapon, movement -> motor.
 /// </summary>
 [RequireComponent(typeof(PlayerMotor))]
 public sealed class PlayerInputController : NetworkBehaviour
@@ -14,6 +14,7 @@ public sealed class PlayerInputController : NetworkBehaviour
     private PlayerCameraController _camera;
     private PlayerInteractor _interactor;
     private PlayerSeating _seat;
+    private PlayerWeapon _weapon;
     private UIRoot _ui;
 
     // ============================================================
@@ -32,6 +33,7 @@ public sealed class PlayerInputController : NetworkBehaviour
         _camera = GetComponent<PlayerCameraController>();
         _interactor = GetComponent<PlayerInteractor>();
         _seat = GetComponent<PlayerSeating>();
+        _weapon = GetComponent<PlayerWeapon>();
         _ui = AppRoot.Instance != null ? AppRoot.Instance.GetComponent<UIRoot>() : null;
 
         _controls = new PlayerControls();
@@ -81,6 +83,15 @@ public sealed class PlayerInputController : NetworkBehaviour
                 if (g.Interact.triggered) _interactor.RequestPrimaryAction();
                 if (g.Throw.triggered) _interactor.RequestThrow();
             }
+        }
+
+        // Shooting: not while paused, driving, or carrying something. Passengers can shoot.
+        if (_weapon != null)
+        {
+            bool holding = _interactor != null && _interactor.CanThrow;
+            bool canShoot = !paused && !(seated && _seat.IsDriving) && !holding;
+            _weapon.SetTrigger(canShoot && g.Fire.IsPressed());
+            if (canShoot && g.Reload.triggered) _weapon.Reload();
         }
 
         // Seated: WASD drives (if driver), Space brakes, Shift (Sprint) is the handbrake. The motor just publishes aim.

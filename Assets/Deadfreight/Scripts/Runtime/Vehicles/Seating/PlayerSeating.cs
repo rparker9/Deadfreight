@@ -27,8 +27,16 @@ public sealed class PlayerSeating : NetworkBehaviour
 
     // Owner: latest driver input, sent at inputSendRate
     private float _throttle, _steer;
-    private bool _brake, _handbrake;
+    private bool _brake;
+    private bool _freeLook;         // camera steering ignores the camera while held...
+    private float _heldYaw;         // ...and holds this heading: the vehicle's when it was pressed
     private float _nextSendTime;
+
+    private const float TravelSmoothing = 10f;     // how quickly the measured travel follows changes (per second)
+    private const float MinTravelSpeed = 2f;       // m/s: slower than this, free look holds the nose's heading instead
+
+    private Vector3 _lastVehiclePosition;
+    private Vector3 _travel;        // owner: the vehicle's flat velocity, measured from its movement (a client's body reads zero)
 
     public VehicleSeat CurrentSeat => _seat;
     public bool IsSeated => _seat != null;
@@ -46,12 +54,19 @@ public sealed class PlayerSeating : NetworkBehaviour
     // OWNER INPUT API (called by PlayerInputController)
     // ============================================================
 
-    public void SetDriverInput(float throttle, float steer, bool brake, bool handbrake)
+    /// <summary>
+    /// <paramref name="freeLook"/>: while held, camera steering stops following the camera and
+    /// holds the heading the vehicle had when it was pressed, so the player can look around.
+    /// </summary>
+    public void SetDriverInput(float throttle, float steer, bool brake, bool freeLook)
     {
         _throttle = Mathf.Clamp(throttle, -1f, 1f);
         _steer = Mathf.Clamp(steer, -1f, 1f);
         _brake = brake;
-        _handbrake = handbrake;
+
+        if (freeLook && !_freeLook && _seat != null)
+            _heldYaw = TravelYaw();
+        _freeLook = freeLook;
     }
 
     public void RequestExit()
@@ -67,13 +82,14 @@ public sealed class PlayerSeating : NetworkBehaviour
     private void Update()
     {
         if (!IsOwner || !IsDriving) return;
+        TrackTravel();
 
         // Sent continuously (not on change) so a lost packet can't leave the throttle stuck.
         if (Time.unscaledTime >= _nextSendTime)
         {
             _nextSendTime = Time.unscaledTime + 1f / Mathf.Max(1f, inputSendRate);
             float steer = ComputeSteer(out float drift);
-            DriverInputServerRpc(_throttle, steer, _brake, Mathf.Max(_handbrake ? 1f : 0f, drift));
+            DriverInputServerRpc(_throttle, steer, _brake, drift);
         }
     }
 
@@ -89,11 +105,13 @@ public sealed class PlayerSeating : NetworkBehaviour
         if (_seat.Steering == VehicleSeat.SteerMode.Keys || _camera == null)
             return _steer;
 
+        /// Free look: steer back to the held heading instead (so it keeps straight), and never drift.
         float vehicleYaw = _seat.Vehicle.eulerAngles.y;
-        float offset = Mathf.DeltaAngle(vehicleYaw, _camera.WorldYaw);
+        float targetYaw = _freeLook ? _heldYaw : _camera.WorldYaw;
+        float offset = Mathf.DeltaAngle(vehicleYaw, targetYaw);
         float steer = Mathf.Clamp(offset / Mathf.Max(1f, _seat.CameraSteerFullAngle), -1f, 1f);
 
-        if (_throttle > 0.01f)
+        if (_throttle > 0.01f && !_freeLook)
             drift = Mathf.InverseLerp(_seat.CameraDriftStartAngle, _seat.CameraDriftFullAngle, Mathf.Abs(offset));
 
         return _throttle < -0.01f ? -steer : steer;
@@ -153,7 +171,7 @@ public sealed class PlayerSeating : NetworkBehaviour
         if (_capsule != null) _capsule.enabled = false;
         if (IsOwner && _motor != null) _motor.enabled = false;
         _throttle = _steer = 0f;
-        _brake = _handbrake = false;
+        _brake = _freeLook = false;
 
         // Third person starts behind the vehicle, looking slightly down.
         if (IsOwner && _camera != null && _seat.ThirdPerson)
@@ -179,6 +197,35 @@ public sealed class PlayerSeating : NetworkBehaviour
 
         if (_capsule != null) _capsule.enabled = true;
         if (IsOwner && _motor != null) _motor.enabled = true;
+    }
+
+    /// <summary>The vehicle's velocity, measured from how far it moved this frame and smoothed.</summary>
+    private void TrackTravel()
+    {
+        Vector3 position = _seat.Vehicle.position;
+        float dt = Time.deltaTime;
+        if (dt > 0f)
+        {
+            Vector3 velocity = (position - _lastVehiclePosition) / dt;
+            velocity.y = 0f;
+            _travel = Vector3.Lerp(_travel, velocity, 1f - Mathf.Exp(-TravelSmoothing * dt));
+        }
+        _lastVehiclePosition = position;
+    }
+
+    /// <summary>
+    /// The heading the vehicle is actually travelling along: in a drift that's where it's sliding,
+    /// not where the nose points. Backing up, the nose faces the other way, so turn it round.
+    /// Too slow to tell: just the nose.
+    /// </summary>
+    private float TravelYaw()
+    {
+        Transform vehicle = _seat.Vehicle;
+        if (_travel.sqrMagnitude < MinTravelSpeed * MinTravelSpeed)
+            return vehicle.eulerAngles.y;
+
+        float yaw = Mathf.Atan2(_travel.x, _travel.z) * Mathf.Rad2Deg;
+        return Vector3.Dot(_travel, vehicle.forward) < 0f ? yaw + 180f : yaw;
     }
 
     // ============================================================
