@@ -10,19 +10,19 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9c68b9b789f43224eb6b1b9473aff7a6, type: 3}
-  m_Name: Handgun
+  m_Name: Rifle
   m_EditorClassIdentifier: Assembly-CSharp::WeaponDefinition
   kind: 0
   automatic: 0
-  fireInterval: 0.25
+  fireInterval: 0.6
   pelletsPerShot: 1
-  spreadDegrees: 0.5
-  recoilPitch: 1.5
-  recoilYaw: 0.5
+  spreadDegrees: 0.2
+  recoilPitch: 3
+  recoilYaw: 0.8
   magazineSize: 8
-  reloadTime: 1.5
-  damage: 25
-  range: 100
+  reloadTime: 2.5
+  damage: 60
+  range: 120
   falloff:
     serializedVersion: 2
     m_Curve:
@@ -37,7 +37,7 @@ MonoBehaviour:
       outWeight: 0
     - serializedVersion: 3
       time: 1
-      value: 1
+      value: 0.85
       inSlope: 0
       outSlope: 0
       tangentMode: 0
@@ -53,6 +53,26 @@ MonoBehaviour:
   lifetime: 5
   explosionRadius: 0
   projectileVisual: {fileID: 0}
+  modelPrefab: {fileID: -2096274912089651938, guid: 502ddd943ec7d564b8a897025c4e18a1, type: 3}
+  hipPosition: {x: 0.17, y: -0.17, z: 0.45}
+  adsDistance: 0.2
+  adsTime: 0.22
+  adsFovMultiplier: 0.75
+  adsSteadiness: 0.25
+  holdType: 0
+  bodyReloadClipLength: 2.5
+  bodyAimCorrection: {x: 0, y: 0}
+  kickBack: 0.06
+  kickUp: 5
+  kickSnappiness: 28
+  kickReturnSpeed: 8
+  swayAmount: 0.02
+  swayMax: 5
+  swaySmoothing: 8
+  bobAmount: 0.015
+  bobFrequency: 0.7
+  lowerAngle: 30
+  lowerDrop: 0.15
   tracerPrefab: {fileID: 5009966377432985916, guid: 42adb1d07dd78c449ae89f60b74f15d5, type: 3}
   muzzleFlashPrefab: {fileID: 100000, guid: 8eaaa4f553116f44b8459bc24201c514, type: 3}
   impactPrefab: {fileID: 100006, guid: 9e95c7b2183a4f345aaf86846f8f1918, type: 3}

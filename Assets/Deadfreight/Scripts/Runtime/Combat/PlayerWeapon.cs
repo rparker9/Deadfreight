@@ -1,5 +1,7 @@
+using System;
 using Unity.Netcode;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 /// <summary>One hitscan result: client -> server (for damage) and server -> others (for FX).</summary>
 public struct ShotHit : INetworkSerializable
@@ -75,6 +77,7 @@ public sealed class PlayerWeapon : NetworkBehaviour
     // ---- All machines ----
     private PlayerState _state;
     private PlayerSeating _seating;
+    private PlayerWeaponView _view;
 
     // ---- Owner (predicted) ----
     private int _ammo;
@@ -89,6 +92,9 @@ public sealed class PlayerWeapon : NetworkBehaviour
     private float _lastTokenTime;
     private float _serverReloadEnd = -1f;
 
+    /// <summary>A shot was fired: on the owner when it fires, on everyone else when the server relays it. For kick/FX.</summary>
+    public event Action Fired;
+
     // ---- For the HUD (owner) ----
     public WeaponDefinition Weapon => weapon;
     public int Ammo => _ammo;
@@ -102,6 +108,7 @@ public sealed class PlayerWeapon : NetworkBehaviour
     {
         _state = GetComponent<PlayerState>();
         _seating = GetComponent<PlayerSeating>();
+        _view = GetComponent<PlayerWeaponView>();
         if (cameraController == null)
             cameraController = GetComponent<PlayerCameraController>();
     }
@@ -193,6 +200,8 @@ public sealed class PlayerWeapon : NetworkBehaviour
             }
             FireProjectileServerRpc(origin, dirs);
         }
+
+        Fired?.Invoke();
 
         if (cameraController != null)
             cameraController.AddRecoil(-weapon.recoilPitch, Random.Range(-weapon.recoilYaw, weapon.recoilYaw));
@@ -355,7 +364,11 @@ public sealed class PlayerWeapon : NetworkBehaviour
 
     // NotOwner = everyone except the shooter (the host included, if the host didn't fire).
     [Rpc(SendTo.NotOwner)]
-    private void ShotFxRpc(ShotHit[] hits) => PlayShotFx(hits);
+    private void ShotFxRpc(ShotHit[] hits)
+    {
+        PlayShotFx(hits);
+        Fired?.Invoke();
+    }
 
     [Rpc(SendTo.NotOwner)]
     private void SpawnProjectilesRpc(Vector3 origin, Vector3[] dirs, float serverCatchUp)
@@ -367,6 +380,8 @@ public sealed class PlayerWeapon : NetworkBehaviour
         for (int i = 0; i < dirs.Length; i++)
             ProjectileSystem.Instance.Spawn(weapon, origin, dirs[i], hitMask, transform, vehicle,
                                             OwnerClientId, authoritative: false, catchUp, visualStart);
+
+        Fired?.Invoke();
     }
 
     /// <summary>
@@ -380,11 +395,15 @@ public sealed class PlayerWeapon : NetworkBehaviour
     // HELPERS
     // ============================================================
 
-    /// <summary>Where shots visually start: the view muzzle for the owner, the body's muzzle for everyone else.</summary>
+    /// <summary>
+    /// Where shots visually start: the gun model's muzzle (PlayerWeaponView) if there is one,
+    /// otherwise the view muzzle for the owner and the body's muzzle for everyone else.
+    /// </summary>
     private Vector3 MuzzlePosition
     {
         get
         {
+            if (_view != null && _view.TryGetMuzzle(out Vector3 modelMuzzle)) return modelMuzzle;
             if (IsOwner && viewMuzzle != null) return viewMuzzle.position;
             if (muzzle != null) return muzzle.position;
             return EyePosition;

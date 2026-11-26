@@ -15,6 +15,7 @@ public sealed class PlayerInputController : NetworkBehaviour
     private PlayerInteractor _interactor;
     private PlayerSeating _seat;
     private PlayerWeapon _weapon;
+    private PlayerWeaponView _weaponView;
     private UIRoot _ui;
 
     // ============================================================
@@ -34,6 +35,7 @@ public sealed class PlayerInputController : NetworkBehaviour
         _interactor = GetComponent<PlayerInteractor>();
         _seat = GetComponent<PlayerSeating>();
         _weapon = GetComponent<PlayerWeapon>();
+        _weaponView = GetComponent<PlayerWeaponView>();
         _ui = AppRoot.Instance != null ? AppRoot.Instance.GetComponent<UIRoot>() : null;
 
         _controls = new PlayerControls();
@@ -92,6 +94,7 @@ public sealed class PlayerInputController : NetworkBehaviour
             bool canShoot = !paused && !(seated && _seat.IsDriving) && !holding && !_motor.IsSprinting;
             _weapon.SetTrigger(canShoot && g.Fire.IsPressed());
             if (canShoot && g.Reload.triggered) _weapon.Reload();
+            if (_weaponView != null) _weaponView.SetAiming(canShoot && g.Aim.IsPressed());
         }
 
         // Seated: WASD drives (if driver), Space brakes, Shift (Sprint) is the handbrake. The motor just publishes aim.

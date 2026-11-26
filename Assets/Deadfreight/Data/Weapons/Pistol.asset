@@ -1,0 +1,78 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9c68b9b789f43224eb6b1b9473aff7a6, type: 3}
+  m_Name: Pistol
+  m_EditorClassIdentifier: Assembly-CSharp::WeaponDefinition
+  kind: 0
+  automatic: 0
+  fireInterval: 0.2
+  pelletsPerShot: 1
+  spreadDegrees: 0.8
+  recoilPitch: 2
+  recoilYaw: 0.6
+  magazineSize: 7
+  reloadTime: 1.6
+  damage: 34
+  range: 50
+  falloff:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 0.7
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  projectileSpeed: 60
+  gravityScale: 1
+  projectileRadius: 0.05
+  lifetime: 5
+  explosionRadius: 0
+  projectileVisual: {fileID: 0}
+  modelPrefab: {fileID: 6964559086925839187, guid: 4310edd7f411fbb4ea1a7ae3456ec742, type: 3}
+  hipPosition: {x: 0.15, y: -0.14, z: 0.35}
+  adsDistance: 0.3
+  adsTime: 0.15
+  adsFovMultiplier: 0.9
+  adsSteadiness: 0.4
+  holdType: 1
+  bodyReloadClipLength: 2.5
+  bodyAimCorrection: {x: 0, y: 0}
+  kickBack: 0.03
+  kickUp: 6
+  kickSnappiness: 35
+  kickReturnSpeed: 12
+  swayAmount: 0.012
+  swayMax: 3
+  swaySmoothing: 12
+  bobAmount: 0.01
+  bobFrequency: 0.7
+  lowerAngle: 40
+  lowerDrop: 0.12
+  tracerPrefab: {fileID: 5009966377432985916, guid: 42adb1d07dd78c449ae89f60b74f15d5, type: 3}
+  muzzleFlashPrefab: {fileID: 100000, guid: 8eaaa4f553116f44b8459bc24201c514, type: 3}
+  impactPrefab: {fileID: 100006, guid: 9e95c7b2183a4f345aaf86846f8f1918, type: 3}

@@ -12,6 +12,13 @@ public sealed class WeaponDefinition : ScriptableObject
         Projectile
     }
 
+    /// <summary>Which set of third-person body animations this weapon uses (Animator WeaponType: 0, 1).</summary>
+    public enum HoldType
+    {
+        Rifle,
+        Pistol
+    }
+
     [Header("Firing")]
     public FireKind kind = FireKind.Hitscan;
     public bool automatic = false;
@@ -47,6 +54,53 @@ public sealed class WeaponDefinition : ScriptableObject
     [Tooltip("> 0 makes impacts explode, with damage falling off linearly to the edge")]
     [Unit("m")] [Min(0f)] public float explosionRadius = 0f;
     public GameObject projectileVisual;
+
+    [Header("View: Model")]
+    [Tooltip("Gun model with a WeaponModel component. Spawned in front of the camera (you) and in the body's right hand (others).")]
+    public WeaponModel modelPrefab;
+
+    [Header("View: First Person")]
+    [Tooltip("Gun position relative to the camera when not aiming (right, up, forward)")]
+    [Unit("m")] public Vector3 hipPosition = new(0.18f, -0.16f, 0.4f);
+    [Tooltip("How far in front of the eye the sight sits when aiming down sights")]
+    [Unit("m")] [Min(0.05f)] public float adsDistance = 0.25f;
+    [Unit("s")] [Min(0.01f)] public float adsTime = 0.18f;
+    [Tooltip("Camera field of view while aiming, as a fraction of normal")]
+    [Range(0.3f, 1f)] public float adsFovMultiplier = 0.8f;
+    [Tooltip("Sway and bob while aiming, as a fraction of normal")]
+    [Range(0f, 1f)] public float adsSteadiness = 0.3f;
+
+    [Header("View: Third Person (body animation)")]
+    [Tooltip("Which body animations to use")]
+    public HoldType holdType = HoldType.Rifle;
+    [Tooltip("Length of this hold type's reload clip. The clip is sped up or slowed to fit Reload Time.")]
+    [Unit("s")] [Min(0.1f)] public float bodyReloadClipLength = 2.5f;
+    [Tooltip("Corrects the aim clip so the barrel lines up with where the player looks (pitch down, yaw right)")]
+    [Unit("°")] public Vector2 bodyAimCorrection = Vector2.zero;
+
+    [Header("View: Kick")]
+    [Tooltip("First person: gun slides back")]
+    [Unit("m")] public float kickBack = 0.04f;
+    [Tooltip("First person: gun tips up. Third person: the upper body tips up by this much.")]
+    [Unit("°")] public float kickUp = 4f;
+    [Tooltip("How fast the gun moves into a kick")]
+    public float kickSnappiness = 30f;
+    [Tooltip("How fast the gun settles back")]
+    public float kickReturnSpeed = 10f;
+
+    [Header("View: Sway and Bob (first person)")]
+    [Tooltip("Degrees of lag per degree/second of turning")]
+    public float swayAmount = 0.015f;
+    [Unit("°")] public float swayMax = 4f;
+    public float swaySmoothing = 10f;
+    [Unit("m")] public float bobAmount = 0.012f;
+    [Tooltip("Bob cycles per metre walked")]
+    public float bobFrequency = 0.7f;
+
+    [Header("View: Lowered (first person reload and sprint)")]
+    [Tooltip("The gun tips down and drops while reloading or sprinting (there are no first-person arms to animate)")]
+    [Unit("°")] public float lowerAngle = 35f;
+    [Unit("m")] public float lowerDrop = 0.12f;
 
     [Header("FX (cosmetic, local only)")]
     public Tracer tracerPrefab;
