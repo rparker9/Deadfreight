@@ -70,7 +70,7 @@ MonoBehaviour:
   swayMax: 5
   swaySmoothing: 8
   bobAmount: 0.015
-  bobFrequency: 0.7
+  bobFrequency: 0.4
   lowerAngle: 30
   lowerDrop: 0.15
   tracerPrefab: {fileID: 5009966377432985916, guid: 42adb1d07dd78c449ae89f60b74f15d5, type: 3}

@@ -1,45 +1,50 @@
 using UnityEngine;
 using Unity.Netcode;
+using Deadfreight.Core;
+using Deadfreight.Player;
 
-public sealed class PauseMenuScreen : MonoBehaviour
+namespace Deadfreight.UI
 {
-    private AppFlow _flow;
-
-    private void Start()
+    public sealed class PauseMenuScreen : MonoBehaviour
     {
-        _flow = AppRoot.Instance.GetComponent<AppFlow>();
-    }
+        private AppFlow _flow;
 
-    public void OnResumePressed()
-    {
-        var nm = NetworkManager.Singleton;
-        if (nm == null) return;
-
-        if (nm.LocalClient != null && nm.LocalClient.PlayerObject != null)
+        private void Start()
         {
-            var input = nm.LocalClient.PlayerObject.GetComponent <PlayerInputController>();
-            if (input != null)
-                input.SetPaused(false);
+            _flow = AppRoot.Instance.GetComponent<AppFlow>();
         }
-    }
 
-    public void OnDisconnectPressed()
-    {
-        // Unpause locally before leaving (same pathway)
-        OnResumePressed();
-        _flow.DisconnectToMenu();
-    }
+        public void OnResumePressed()
+        {
+            var nm = NetworkManager.Singleton;
+            if (nm == null) return;
 
-    public void OnQuitPressed()
-    {
-        // Unpause locally before quitting (same pathway)
-        OnResumePressed();
+            if (nm.LocalClient != null && nm.LocalClient.PlayerObject != null)
+            {
+                var input = nm.LocalClient.PlayerObject.GetComponent <PlayerInputController>();
+                if (input != null)
+                    input.SetPaused(false);
+            }
+        }
 
-#if UNITY_EDITOR
-        // Application.Quit() does not work in the editor so stop playing instead
-        UnityEditor.EditorApplication.isPlaying = false;
-#else
-        Application.Quit();
-#endif
+        public void OnDisconnectPressed()
+        {
+            // Unpause locally before leaving (same pathway)
+            OnResumePressed();
+            _flow.DisconnectToMenu();
+        }
+
+        public void OnQuitPressed()
+        {
+            // Unpause locally before quitting (same pathway)
+            OnResumePressed();
+
+    #if UNITY_EDITOR
+            // Application.Quit() does not work in the editor so stop playing instead
+            UnityEditor.EditorApplication.isPlaying = false;
+    #else
+            Application.Quit();
+    #endif
+        }
     }
 }

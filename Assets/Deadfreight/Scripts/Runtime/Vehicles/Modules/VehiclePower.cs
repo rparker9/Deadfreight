@@ -1,27 +1,30 @@
-/// <summary>
-/// Turns throttle into drive force and splits it across the driven wheels.
-/// Subclass and implement ComputeForce to change where force comes from
-/// (a plain engine, one that burns fuel, animals pulling...).
-/// </summary>
-public abstract class VehiclePower : VehicleModule
+namespace Deadfreight.Vehicles
 {
-    public override int Order => VehicleModuleOrder.Power;
-
-    /// <summary>Total drive force (N) for this step. Positive = forward.</summary>
-    protected abstract float ComputeForce(float throttle, float forwardSpeed, float dt);
-
-    public override void Simulate(in VehicleControls controls, ref VehicleNetState state, float dt)
+    /// <summary>
+    /// Turns throttle into drive force and splits it across the driven wheels.
+    /// Subclass and implement ComputeForce to change where force comes from
+    /// (a plain engine, one that burns fuel, animals pulling...).
+    /// </summary>
+    public abstract class VehiclePower : VehicleModule
     {
-        // Braking cuts the power, so the brakes never fight the engine.
-        float throttle = controls.Brake > 0f ? 0f : controls.Throttle;
-        float force = ComputeForce(throttle, Vehicle.ForwardSpeed, dt);
+        public override int Order => VehicleModuleOrder.Power;
 
-        int driven = 0;
-        foreach (var wheel in Vehicle.Wheels)
-            if (wheel.IsDriven) driven++;
+        /// <summary>Total drive force (N) for this step. Positive = forward.</summary>
+        protected abstract float ComputeForce(float throttle, float forwardSpeed, float dt);
 
-        float perWheel = driven > 0 ? force / driven : 0f;
-        foreach (var wheel in Vehicle.Wheels)
-            wheel.DriveForce = wheel.IsDriven ? perWheel : 0f;
+        public override void Simulate(in VehicleControls controls, ref VehicleNetState state, float dt)
+        {
+            // Braking cuts the power, so the brakes never fight the engine.
+            float throttle = controls.Brake > 0f ? 0f : controls.Throttle;
+            float force = ComputeForce(throttle, Vehicle.ForwardSpeed, dt);
+
+            int driven = 0;
+            foreach (var wheel in Vehicle.Wheels)
+                if (wheel.IsDriven) driven++;
+
+            float perWheel = driven > 0 ? force / driven : 0f;
+            foreach (var wheel in Vehicle.Wheels)
+                wheel.DriveForce = wheel.IsDriven ? perWheel : 0f;
+        }
     }
 }

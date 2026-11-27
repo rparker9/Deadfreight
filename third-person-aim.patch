@@ -1,0 +1,141 @@
+diff --git a/Assets/Deadfreight/Scripts/Runtime/Combat/Core/PlayerWeapon.cs b/Assets/Deadfreight/Scripts/Runtime/Combat/Core/PlayerWeapon.cs
+index 4711974..c6ebcd5 100644
+--- a/Assets/Deadfreight/Scripts/Runtime/Combat/Core/PlayerWeapon.cs
++++ b/Assets/Deadfreight/Scripts/Runtime/Combat/Core/PlayerWeapon.cs
+@@ -456,7 +456,8 @@ namespace Deadfreight.Combat
+             }
+         }
+ 
+-        private Vector3 EyePosition => eye != null ? eye.position : transform.position + Vector3.up * DefaultEyeHeight;
++        /// <summary>Where shots start: the eye. Exists on every machine (the view uses it to aim the body's gun).</summary>
++        public Vector3 EyePosition => eye != null ? eye.position : transform.position + Vector3.up * DefaultEyeHeight;
+ 
+         /// <summary>The vehicle we're seated in, or null. Seats are server-written, so this works everywhere.</summary>
+         private Transform SeatedVehicle()
+diff --git a/Assets/Deadfreight/Scripts/Runtime/Combat/Data/WeaponDefinition.cs b/Assets/Deadfreight/Scripts/Runtime/Combat/Data/WeaponDefinition.cs
+index 47e83de..c101b9d 100644
+--- a/Assets/Deadfreight/Scripts/Runtime/Combat/Data/WeaponDefinition.cs
++++ b/Assets/Deadfreight/Scripts/Runtime/Combat/Data/WeaponDefinition.cs
+@@ -79,7 +79,7 @@ namespace Deadfreight.Combat
+         public HoldType holdType = HoldType.Rifle;
+         [Tooltip("Length of this hold type's reload clip. The clip is sped up or slowed to fit Reload Time.")]
+         [Unit("s")] [Min(0.1f)] public float bodyReloadClipLength = 2.5f;
+-        [Tooltip("Corrects the aim clip so the barrel lines up with where the player looks (pitch down, yaw right)")]
++        [Tooltip("Small extra offset on the body's aim (pitch down, yaw right). Normally 0: the body lines the barrel up on its own.")]
+         [Unit("°")] public Vector2 bodyAimCorrection = Vector2.zero;
+ 
+         [Header("View: Kick")]
+diff --git a/Assets/Deadfreight/Scripts/Runtime/Combat/Presentation/WeaponViewThirdPerson.cs b/Assets/Deadfreight/Scripts/Runtime/Combat/Presentation/WeaponViewThirdPerson.cs
+index fec75bc..db0a4ee 100644
+--- a/Assets/Deadfreight/Scripts/Runtime/Combat/Presentation/WeaponViewThirdPerson.cs
++++ b/Assets/Deadfreight/Scripts/Runtime/Combat/Presentation/WeaponViewThirdPerson.cs
+@@ -38,10 +38,15 @@ namespace Deadfreight.Combat
+         [SerializeField] private Transform leftHandTarget;
+ 
+         [Header("Aim")]
+-        [Tooltip("How far the upper body can twist left/right from the hips (a seated passenger looking sideways)")]
++        [Tooltip("How far ahead of the eye the barrel is aimed. Other machines don't know what the player " +
++                 "is actually looking at, so this is a fixed distance along their aim.")]
++        [Unit("m")] [SerializeField] private float aimDistance = 20f;
++        [Tooltip("How far the aim can turn left/right from the hips (a seated passenger looking sideways)")]
+         [Unit("°")] [SerializeField] private float maxBodyYaw = 80f;
+-        [Tooltip("How much of the aim pitch the body follows while holding (not aiming down sights)")]
+-        [Range(0f, 1f)] [SerializeField] private float holdPitchFollow = 0.5f;
++        [Tooltip("How much of the way the gun turns to the aim while holding (not aiming down sights). 1 = all the way.")]
++        [Range(0f, 1f)] [SerializeField] private float holdAimFollow = 0f;
++        [Tooltip("Largest turn the spine will make to line the gun up, so odd poses never fold the body")]
++        [Unit("°")] [SerializeField] private float maxCorrection = 75f;
+         [Tooltip("How fast the body follows the synced aim (like head look)")]
+         [SerializeField] private float aimSmoothSpeed = 15f;
+         [Tooltip("How fast the upper-body layer and left-hand IK fade in/out (per second)")]
+@@ -149,7 +154,7 @@ namespace Deadfreight.Combat
+                 leftHandIK.weight = Mathf.MoveTowards(leftHandIK.weight, wantIK ? _weight : 0f, blendSpeed * dt);
+             }
+ 
+-            BendSpine(def, dt);
++            AimSpine(def, dt);
+         }
+ 
+         private void OnFired() => _kick.Add(_weapon.Weapon);
+@@ -159,11 +164,12 @@ namespace Deadfreight.Combat
+         // ============================================================
+ 
+         /// <summary>
+-        /// The aim clips point straight ahead from the hips. Bend the spine toward the synced aim:
+-        /// pitch always, yaw only as far as the body isn't already facing it (seated passengers).
++        /// Point the gun at the aim, whatever the clip's stance: measure where the barrel actually points
++        /// after animation, then turn the spine by exactly the difference. The target is the same line
++        /// the hitscan uses (from the eye along the synced aim), aimDistance ahead.
+         /// Runs after animation and IK, so the arms, gun and left hand all move with the chest.
+         /// </summary>
+-        private void BendSpine(WeaponDefinition def, float dt)
++        private void AimSpine(WeaponDefinition def, float dt)
+         {
+             if (spineBones == null || spineBones.Length == 0 || _weight <= 0f) return;
+ 
+@@ -172,26 +178,54 @@ namespace Deadfreight.Combat
+             _pitch = Mathf.Lerp(_pitch, _state.AimPitch.Value, t);
+             _yaw += Mathf.DeltaAngle(_yaw, _state.AimYaw.Value) * t;
+ 
++            // Aim direction, with yaw limited relative to the hips.
+             Transform body = animator.transform;
+-            float follow = Mathf.Lerp(holdPitchFollow, 1f, Mathf.SmoothStep(0f, 1f, _ads));
+-
+-            // Positive pitch = down (matches AimPitch). Kick tips the body up.
+-            float pitch = (_pitch * follow + def.bodyAimCorrection.x - _kick.Up) * _weight;
+-            float yaw = (Mathf.Clamp(Mathf.DeltaAngle(body.eulerAngles.y, _yaw), -maxBodyYaw, maxBodyYaw)
+-                         + def.bodyAimCorrection.y) * _weight;
++            float bodyYaw = body.eulerAngles.y;
++            float yaw = bodyYaw + Mathf.Clamp(Mathf.DeltaAngle(bodyYaw, _yaw), -maxBodyYaw, maxBodyYaw);
++            Vector3 aimDir = Quaternion.Euler(_pitch + def.bodyAimCorrection.x, yaw + def.bodyAimCorrection.y, 0f) * Vector3.forward;
++            Vector3 target = _weapon.EyePosition + aimDir * aimDistance;
+ 
++            float follow = _weight * Mathf.Lerp(holdAimFollow, 1f, Mathf.SmoothStep(0f, 1f, _ads));
+             Quaternion headBefore = head != null ? head.rotation : Quaternion.identity;
+ 
+-            // Spread the bend evenly over the spine bones.
+-            float n = spineBones.Length;
+-            Quaternion step = Quaternion.AngleAxis(yaw / n, body.up) * Quaternion.AngleAxis(pitch / n, body.right);
+-            foreach (Transform bone in spineBones)
+-                if (bone != null) bone.rotation = step * bone.rotation;
++            // Turning the spine also moves the muzzle, so a second pass cleans up what's left (only when
++            // following fully; a partial follow is meant to stay partial).
++            Transform gun = _model.transform;
++            Transform muzzle = _model.Muzzle != null ? _model.Muzzle : gun;
++            int passes = follow > 0.99f ? 2 : 1;
++            for (int i = 0; i < passes; i++)
++            {
++                Vector3 want = target - muzzle.position;
++                if (want.sqrMagnitude < 0.01f) break;
++
++                // The gun's +Z is the barrel (WeaponModel convention).
++                Quaternion.FromToRotation(gun.forward, want.normalized).ToAngleAxis(out float angle, out Vector3 axis);
++                if (angle > 180f) angle -= 360f;
++                if (Mathf.Abs(angle) < 0.01f) break;
++
++                angle = Mathf.Clamp(angle, -maxCorrection, maxCorrection) * follow;
++                TurnSpine(Quaternion.AngleAxis(angle, axis));
++            }
++
++            // Kick tips the chest up.
++            if (_kick.Up > 0f)
++                TurnSpine(Quaternion.AngleAxis(-_kick.Up * _weight, body.right));
+ 
+             // Keep the head where head look put it.
+             if (head != null) head.rotation = headBefore;
+         }
+ 
++        /// <summary>
++        /// Spread a world-space turn evenly over the spine. Each bone turns by a share, and each share
++        /// also carries the bones above it, so the chest (and the gun) end up turned by the whole amount.
++        /// </summary>
++        private void TurnSpine(Quaternion turn)
++        {
++            Quaternion step = Quaternion.Slerp(Quaternion.identity, turn, 1f / spineBones.Length);
++            foreach (Transform bone in spineBones)
++                if (bone != null) bone.rotation = step * bone.rotation;
++        }
++
+         // ============================================================
+         // HELPERS
+         // ============================================================

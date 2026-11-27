@@ -1070,7 +1070,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 836609874}
-        m_TargetAssemblyTypeName: PauseMenuScreen, Assembly-CSharp
+        m_TargetAssemblyTypeName: Deadfreight.UI.PauseMenuScreen, Assembly-CSharp
         m_MethodName: OnDisconnectPressed
         m_Mode: 1
         m_Arguments:
@@ -1203,7 +1203,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1675442314}
-        m_TargetAssemblyTypeName: MainMenuScreen, Assembly-CSharp
+        m_TargetAssemblyTypeName: Deadfreight.UI.MainMenuScreen, Assembly-CSharp
         m_MethodName: OnJoinPressed
         m_Mode: 1
         m_Arguments:
@@ -3373,7 +3373,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 836609874}
-        m_TargetAssemblyTypeName: PauseMenuScreen, Assembly-CSharp
+        m_TargetAssemblyTypeName: Deadfreight.UI.PauseMenuScreen, Assembly-CSharp
         m_MethodName: OnResumePressed
         m_Mode: 1
         m_Arguments:
@@ -3790,7 +3790,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 836609874}
-        m_TargetAssemblyTypeName: PauseMenuScreen, Assembly-CSharp
+        m_TargetAssemblyTypeName: Deadfreight.UI.PauseMenuScreen, Assembly-CSharp
         m_MethodName: OnDisconnectPressed
         m_Mode: 1
         m_Arguments:
@@ -4041,7 +4041,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1675442314}
-        m_TargetAssemblyTypeName: MainMenuScreen, Assembly-CSharp
+        m_TargetAssemblyTypeName: Deadfreight.UI.MainMenuScreen, Assembly-CSharp
         m_MethodName: OnHostPressed
         m_Mode: 1
         m_Arguments:
@@ -4174,7 +4174,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1675442314}
-        m_TargetAssemblyTypeName: MainMenuScreen, Assembly-CSharp
+        m_TargetAssemblyTypeName: Deadfreight.UI.MainMenuScreen, Assembly-CSharp
         m_MethodName: OnQuitPressed
         m_Mode: 1
         m_Arguments:

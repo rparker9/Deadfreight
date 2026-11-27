@@ -1,110 +1,115 @@
 using TMPro;
 using UnityEngine;
+using Deadfreight.Combat;
+using Deadfreight.Interaction;
 
-/// <summary>
-/// Displays interaction prompts and ammo for the local player.
-/// Reads state directly from the local PlayerInteractor / PlayerWeapon each frame (no events needed).
-/// </summary>
-public sealed class HUDController : MonoBehaviour
+namespace Deadfreight.UI
 {
-    [Header("UI References")]
-    [SerializeField] private GameObject root;
-    [SerializeField] private TMP_Text promptText;
-    [Tooltip("Optional. Shown separately from the prompt.")]
-    [SerializeField] private TMP_Text ammoText;
-
-    private PlayerInteractor _interactor;
-    private PlayerWeapon _weapon;
-
-    private void Awake()
+    /// <summary>
+    /// Displays interaction prompts and ammo for the local player.
+    /// Reads state directly from the local PlayerInteractor / PlayerWeapon each frame (no events needed).
+    /// </summary>
+    public sealed class HUDController : MonoBehaviour
     {
-        if (root == null) root = gameObject;
-        SetVisible(false);
-    }
+        [Header("UI References")]
+        [SerializeField] private GameObject root;
+        [SerializeField] private TMP_Text promptText;
+        [Tooltip("Optional. Shown separately from the prompt.")]
+        [SerializeField] private TMP_Text ammoText;
 
-    private void Update()
-    {
-        UpdateAmmo();
+        private PlayerInteractor _interactor;
+        private PlayerWeapon _weapon;
 
-        // Find local player if we don't have one
-        if (_interactor == null)
+        private void Awake()
         {
-            _interactor = FindLocalInteractor();
+            if (root == null) root = gameObject;
+            SetVisible(false);
+        }
+
+        private void Update()
+        {
+            UpdateAmmo();
+
+            // Find local player if we don't have one
             if (_interactor == null)
+            {
+                _interactor = FindLocalInteractor();
+                if (_interactor == null)
+                {
+                    SetVisible(false);
+                    return;
+                }
+            }
+
+            // Build prompt text from current state
+            string prompt = BuildPromptText();
+
+            if (string.IsNullOrEmpty(prompt))
             {
                 SetVisible(false);
                 return;
             }
+
+            promptText.text = prompt;
+            SetVisible(true);
         }
 
-        // Build prompt text from current state
-        string prompt = BuildPromptText();
-
-        if (string.IsNullOrEmpty(prompt))
+        private void UpdateAmmo()
         {
-            SetVisible(false);
-            return;
+            if (ammoText == null) return;
+
+            if (_weapon == null && _interactor != null)
+                _weapon = _interactor.GetComponent<PlayerWeapon>();
+
+            bool show = _weapon != null && _weapon.Weapon != null;
+            ammoText.gameObject.SetActive(show);
+            if (!show) return;
+
+            ammoText.text = _weapon.IsReloading ? "Reloading..." : $"{_weapon.Ammo} / {_weapon.Weapon.magazineSize}";
         }
 
-        promptText.text = prompt;
-        SetVisible(true);
-    }
-
-    private void UpdateAmmo()
-    {
-        if (ammoText == null) return;
-
-        if (_weapon == null && _interactor != null)
-            _weapon = _interactor.GetComponent<PlayerWeapon>();
-
-        bool show = _weapon != null && _weapon.Weapon != null;
-        ammoText.gameObject.SetActive(show);
-        if (!show) return;
-
-        ammoText.text = _weapon.IsReloading ? "Reloading..." : $"{_weapon.Ammo} / {_weapon.Weapon.magazineSize}";
-    }
-
-    private PlayerInteractor FindLocalInteractor()
-    {
-        var all = FindObjectsByType<PlayerInteractor>(FindObjectsInactive.Include);
-        foreach (var controller in all)
+        private PlayerInteractor FindLocalInteractor()
         {
-            if (controller != null && controller.IsOwner)
-                return controller;
+            var all = FindObjectsByType<PlayerInteractor>(FindObjectsInactive.Include);
+            foreach (var controller in all)
+            {
+                if (controller != null && controller.IsOwner)
+                    return controller;
+            }
+            return null;
         }
-        return null;
-    }
 
-    private string BuildPromptText()
-    {
-        // Primary action (E key)
-        string primary = null;
-        if (!string.IsNullOrEmpty(_interactor.ActionPrompt))
-            primary = $"E: {_interactor.ActionPrompt}";
+        private string BuildPromptText()
+        {
+            // Primary action (E key)
+            string primary = null;
+            if (!string.IsNullOrEmpty(_interactor.ActionPrompt))
+                primary = $"E: {_interactor.ActionPrompt}";
 
-        // Secondary action (Q key) - only when holding
-        string secondary = null;
-        if (_interactor.CanThrow)
-            secondary = "Q: Throw";
+            // Secondary action (Q key) - only when holding
+            string secondary = null;
+            if (_interactor.CanThrow)
+                secondary = "Q: Throw";
 
-        // Combine prompts
-        if (!string.IsNullOrEmpty(primary) && !string.IsNullOrEmpty(secondary))
-            return $"{primary}\n{secondary}";
+            // Combine prompts
+            if (!string.IsNullOrEmpty(primary) && !string.IsNullOrEmpty(secondary))
+                return $"{primary}\n{secondary}";
 
-        if (!string.IsNullOrEmpty(primary))
-            return primary;
+            if (!string.IsNullOrEmpty(primary))
+                return primary;
 
-        if (!string.IsNullOrEmpty(secondary))
-            return secondary;
+            if (!string.IsNullOrEmpty(secondary))
+                return secondary;
 
-        return null;
-    }
+            return null;
+        }
 
-    private void SetVisible(bool visible)
-    {
-        if (root != null)
-            root.SetActive(visible);
-        else
-            gameObject.SetActive(visible);
+        private void SetVisible(bool visible)
+        {
+            if (root != null)
+                root.SetActive(visible);
+            else
+                gameObject.SetActive(visible);
+        }
     }
 }
