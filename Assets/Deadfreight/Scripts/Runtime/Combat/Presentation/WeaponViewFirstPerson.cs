@@ -1,5 +1,6 @@
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 using Deadfreight.Core;
 using Deadfreight.Player;
 
@@ -10,8 +11,14 @@ namespace Deadfreight.Combat
     /// hip/ADS position, kick, sway, bob, and a lowered pose while reloading or sprinting.
     /// Reads everything from PlayerWeapon; nothing here affects where shots go.
     ///
-    /// The gun is a child of the camera. Its root is the handle (+Z down the barrel), placed at the
+    /// The gun is drawn by its own overlay camera that sits at the WORLD ORIGIN and copies the main
+    /// camera's rotation and field of view. Far from the origin (levels are kilometres wide), 32-bit
+    /// positions round to about a millimetre, which makes a gun 40 cm from your eye shimmer. At the
+    /// origin it's exact. It also draws on top of the world, so the gun never clips into walls.
+    ///
+    /// The gun is a child of that camera. Its root is the handle (+Z down the barrel), placed at the
     /// weapon's Hip Position, and moved so the Sight is on the camera's centre line when aiming.
+    /// Without a "ViewModel" layer it falls back to being a plain child of the main camera.
     /// </summary>
     [DefaultExecutionOrder(50)]
     [DisallowMultipleComponent]
@@ -21,6 +28,11 @@ namespace Deadfreight.Combat
         private const float LowerBlendTime = 0.2f;   // s, into and out of the lowered pose
 
         [SerializeField] private PlayerCameraController cameraController;
+
+        [Header("View Model Camera")]
+        [Tooltip("Layer the first-person gun is drawn on. Add it in Tags & Layers; the main camera stops drawing it.")]
+        [SerializeField] private string viewModelLayer = "ViewModel";
+        [Unit("m")][SerializeField] private float viewModelNearClip = 0.01f;
 
         [Header("Bob (per gait, blended by speed)")]
         [Tooltip("Walking. Below walk speed the bob shrinks toward nothing at a standstill.")]
@@ -58,7 +70,10 @@ namespace Deadfreight.Combat
         private PlayerWeapon _weapon;
         private PlayerState _state;
         private MovementSettings _movement;
-        private Camera _camera;
+        private Camera _camera;          // main camera (your view of the world)
+        private Camera _viewCamera;      // draws the gun, at the world origin
+        private Transform _muzzleWorld;  // where the gun's muzzle appears in the world (for tracers)
+        private int _viewLayer = -1;
         private WeaponModel _model;
         private Vector3 _sightOffset;
         private float _baseFov;
@@ -96,10 +111,32 @@ namespace Deadfreight.Combat
                 return;
             }
 
-            _model = WeaponModel.Spawn(def.modelPrefab, _camera.transform, castShadows: false);
-            _sightOffset = _model.SightOffset;
             _baseFov = _camera.fieldOfView;
-            _weapon.SetModelMuzzle(_model.Muzzle, firstPerson: true);
+            _viewLayer = LayerMask.NameToLayer(viewModelLayer);
+            if (_viewLayer < 0)
+                Debug.LogWarning($"[WeaponViewFirstPerson] No '{viewModelLayer}' layer; the gun will be drawn by the main " +
+                                 "camera and may shimmer far from the world origin.", this);
+            else
+                CreateViewCamera();
+
+            Transform parent = _viewCamera != null ? _viewCamera.transform : _camera.transform;
+            _model = WeaponModel.Spawn(def.modelPrefab, parent, castShadows: false);
+            _sightOffset = _model.SightOffset;
+
+            if (_viewCamera != null)
+            {
+                foreach (var t in _model.GetComponentsInChildren<Transform>(true))
+                    t.gameObject.layer = _viewLayer;
+                // The gun really sits at the origin, so the world's shadows there would be wrong on it.
+                foreach (var r in _model.GetComponentsInChildren<Renderer>(true))
+                    r.receiveShadows = false;
+
+                // A point under the MAIN camera that mirrors the muzzle, so tracers start from where you see it.
+                _muzzleWorld = new GameObject("View Muzzle (world)").transform;
+                _muzzleWorld.SetParent(_camera.transform, false);
+            }
+
+            _weapon.SetModelMuzzle(_model.Muzzle, firstPerson: true, _muzzleWorld);
             _weapon.Fired += OnFired;
         }
 
@@ -110,6 +147,8 @@ namespace Deadfreight.Combat
             _weapon.Fired -= OnFired;
             if (_camera != null) _camera.fieldOfView = _baseFov;
             Destroy(_model.gameObject);
+            if (_muzzleWorld != null) Destroy(_muzzleWorld.gameObject);
+            DestroyViewCamera();
         }
 
         private void LateUpdate()
@@ -130,9 +169,68 @@ namespace Deadfreight.Combat
             else _hasLastView = false;
 
             _camera.fieldOfView = _baseFov * Mathf.Lerp(1f, def.adsFovMultiplier, Mathf.SmoothStep(0f, 1f, _ads));
+            SyncViewCamera();
         }
 
         private void OnFired() => _kick.Add(_weapon.Weapon);
+
+        // ============================================================
+        // VIEW MODEL CAMERA
+        // ============================================================
+
+        /// <summary>An overlay camera at the world origin that only draws the gun, stacked on the main camera.</summary>
+        private void CreateViewCamera()
+        {
+            var go = new GameObject("ViewModel Camera");
+            go.transform.SetPositionAndRotation(Vector3.zero, _camera.transform.rotation);
+
+            _viewCamera = go.AddComponent<Camera>();
+            _viewCamera.cullingMask = 1 << _viewLayer;
+            _viewCamera.nearClipPlane = viewModelNearClip;
+            _viewCamera.farClipPlane = 5f;
+            _viewCamera.fieldOfView = _camera.fieldOfView;
+
+            var mainData = _camera.GetUniversalAdditionalCameraData();
+            var viewData = _viewCamera.GetUniversalAdditionalCameraData();
+            viewData.renderType = CameraRenderType.Overlay;
+            viewData.renderShadows = false;
+            viewData.renderPostProcessing = mainData.renderPostProcessing;
+            mainData.cameraStack.Add(_viewCamera);
+
+            // The main camera stops drawing the gun layer.
+            _camera.cullingMask &= ~(1 << _viewLayer);
+        }
+
+        private void DestroyViewCamera()
+        {
+            if (_viewCamera == null) return;
+            if (_camera != null)
+            {
+                _camera.GetUniversalAdditionalCameraData().cameraStack.Remove(_viewCamera);
+                _camera.cullingMask |= 1 << _viewLayer;
+            }
+            Destroy(_viewCamera.gameObject);
+        }
+
+        /// <summary>
+        /// Runs after the main camera is placed (execution order 50): copy its rotation and FOV, stay at
+        /// the origin, and move the world muzzle point to match the gun's muzzle.
+        /// </summary>
+        private void SyncViewCamera()
+        {
+            if (_viewCamera == null) return;
+
+            _viewCamera.transform.SetPositionAndRotation(Vector3.zero, _camera.transform.rotation);
+            _viewCamera.fieldOfView = _camera.fieldOfView;
+
+            if (_muzzleWorld != null && _model.Muzzle != null)
+            {
+                Transform view = _viewCamera.transform;
+                _muzzleWorld.SetLocalPositionAndRotation(
+                    view.InverseTransformPoint(_model.Muzzle.position),
+                    Quaternion.Inverse(view.rotation) * _model.Muzzle.rotation);
+            }
+        }
 
         // ============================================================
         // POSE

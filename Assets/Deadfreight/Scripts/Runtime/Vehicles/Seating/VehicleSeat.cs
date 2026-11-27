@@ -12,10 +12,10 @@ namespace Deadfreight.Vehicles
     /// </summary>
     public sealed class VehicleSeat : MonoBehaviour
     {
-        public enum SeatRole 
-        { 
-            Driver, 
-            Passenger 
+        public enum SeatRole
+        {
+            Driver,
+            Passenger
         }
         public enum SteerMode
         {
@@ -41,28 +41,33 @@ namespace Deadfreight.Vehicles
         [Tooltip("Camera pitches and rolls with the vehicle. Off = only follows its heading (gentler). First person only.")]
         [SerializeField] private bool inheritTilt = true;
 
+        [Tooltip("Eye height above the seat while sitting (the player's root is placed at the seat). Match it to the " +
+                 "seated model's eyes. Applied on every machine, so shots and other players' view of your aim use it too.")]
+        [Unit("m")][SerializeField] private float eyeHeight = 1.6f;
+
         [Header("Third Person (Halo-style)")]
         [Tooltip("Orbit camera around the vehicle instead of looking from the seat")]
         [SerializeField] private bool thirdPerson = true;
         [Tooltip("Point the camera orbits around. Empty = vehicle root, raised by Camera Height.")]
         [SerializeField] private Transform cameraFocus;
-        [Unit("m")] [SerializeField] private float cameraHeight = 2f;
-        [Unit("m")] [SerializeField] private float cameraDistance = 6f;
+        [Unit("m")][SerializeField] private float cameraHeight = 2f;
+        [Unit("m")][SerializeField] private float cameraDistance = 6f;
 
         [Header("Driving")]
         [SerializeField] private SteerMode steerMode = SteerMode.Camera;
         [Tooltip("Camera mode: how far (degrees) the camera must be off the vehicle's heading for full lock")]
-        [Unit("°")] [SerializeField] private float cameraSteerFullAngle = 30f;
+        [Unit("°")][SerializeField] private float cameraSteerFullAngle = 30f;
         [Tooltip("Camera mode: driving forward with the camera this far (degrees) off the vehicle's heading starts a drift, " +
                  "as if the handbrake were pulled. Above 180 = never drift.")]
-        [Unit("°")] [SerializeField] private float cameraDriftStartAngle = 60f;
+        [Unit("°")][SerializeField] private float cameraDriftStartAngle = 60f;
         [Tooltip("Camera mode: ...and this far is a full drift.")]
-        [Unit("°")] [SerializeField] private float cameraDriftFullAngle = 110f;
+        [Unit("°")][SerializeField] private float cameraDriftFullAngle = 110f;
 
         // Public Accessors
         public SeatRole Role => role;
         public Transform ExitPoint => exitPoint != null ? exitPoint : transform;
         public float YawLimit => yawLimit;
+        public float EyeHeight => eyeHeight;
         public bool ThirdPerson => thirdPerson;
         public float CameraDistance => cameraDistance;
         public SteerMode Steering => steerMode;

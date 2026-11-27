@@ -31,6 +31,9 @@ namespace Deadfreight.Player
         [Header("Smoothing")]
         [Tooltip("Higher = smoother camera. 0 = instant. Try 15-25 for realistic feel.")]
         [SerializeField] private float lookSmoothing = 20f;
+        [Tooltip("Seated, first person: seconds to ease the seat's rotation into the view. Filters out the vehicle's " +
+                 "very fast physics jitter while keeping slower bumps and turns. 0 = follow the seat exactly.")]
+        [SerializeField, Min(0f)] private float seatViewSmoothing = 0.03f;
 
         private const string FallbackCameraTag = "FallbackCamera";
 
@@ -40,7 +43,11 @@ namespace Deadfreight.Player
 
         private GameObject _fallbackCamera;
 
-        // Vehicle seat: look is relative to this rotation, with a yaw limit
+        // Eye height: the view rig's height above the player's root (captured on first use)
+        private float _standingEyeHeight;
+        private bool _eyeHeightCaptured;
+
+        // Vehicle seat: look is relative to this rotation (eased, see seatViewSmoothing), with a yaw limit
         private Quaternion? _reference;
         private float _yawLimit = 180f;
 
@@ -237,6 +244,25 @@ namespace Deadfreight.Player
         }
 
         /// <summary>
+        /// Raise or lower the view rig (eyes) above the player's root, e.g. while seated.
+        /// Null = back to the prefab's standing height. Not owner-only: the rig exists on every machine and
+        /// shots start from it (PlayerWeapon's eye), so everyone must agree where the eyes are.
+        /// </summary>
+        public void SetEyeHeight(float? height)
+        {
+            if (yawPivot == null) return;
+            if (!_eyeHeightCaptured)
+            {
+                _standingEyeHeight = yawPivot.localPosition.y;
+                _eyeHeightCaptured = true;
+            }
+
+            Vector3 p = yawPivot.localPosition;
+            p.y = height ?? _standingEyeHeight;
+            yawPivot.localPosition = p;
+        }
+
+        /// <summary>
         /// Manually set camera angles (useful for cutscenes, respawn, etc.)
         /// </summary>
         public void SetAngles(float yaw, float pitch)
@@ -263,7 +289,18 @@ namespace Deadfreight.Player
             else if (!reference.HasValue && _reference.HasValue)
                 _yaw = WorldYaw;           // getting out: keep looking the same way
 
-            _reference = reference;
+            // Ease toward the seat's rotation instead of copying it, so the vehicle's tiny high-frequency
+            // physics jitter doesn't shake the view. Snaps on entering/leaving. Expects one call per frame
+            // (PlayerSeating calls it every LateUpdate while seated).
+            if (reference.HasValue && _reference.HasValue && seatViewSmoothing > 0f)
+            {
+                float t = 1f - Mathf.Exp(-Time.deltaTime / seatViewSmoothing);
+                _reference = Quaternion.Slerp(_reference.Value, reference.Value, t);
+            }
+            else
+            {
+                _reference = reference;
+            }
             _yawLimit = yawLimit;
             UpdateTransforms();
         }

@@ -27,17 +27,17 @@ namespace Deadfreight.Vehicles
         [Tooltip("Center of mass relative to the vehicle root in meters. Lower = harder to tip.")]
         [SerializeField] private Vector3 centerOfMass = new Vector3(0f, 0.2f, 0f);
         [Tooltip("Fastest it can spin (radians per second). Lower = drifts and crashes spin out less wildly.")]
-        [Unit("Rad/s")] [SerializeField] private float maxAngularVelocity = 5f;
+        [Unit("Rad/s")][SerializeField] private float maxAngularVelocity = 5f;
 
         [Header("Events")]
         [Tooltip("Collisions at least this fast (m/s) raise Impacted")]
-        [Unit("m/s")] [SerializeField] private float impactSpeedThreshold = 3f;
+        [Unit("m/s")][SerializeField] private float impactSpeedThreshold = 3f;
 
         [Tooltip("Tilt (degrees) that counts as tipped over")]
-        [Unit("°")] [SerializeField] private float tipAngle = 60f;
+        [Unit("°")][SerializeField] private float tipAngle = 60f;
 
         [Tooltip("Below this speed (m/s) with throttle applied, the vehicle counts as stuck")]
-        [Unit("m/s")] [SerializeField] private float stuckSpeed = 0.05f;
+        [Unit("m/s")][SerializeField] private float stuckSpeed = 0.05f;
 
         // ---- Events (SERVER only) ----
         /// <summary>

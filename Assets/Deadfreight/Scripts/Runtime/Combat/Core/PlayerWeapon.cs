@@ -80,6 +80,7 @@ namespace Deadfreight.Combat
 
         // Muzzles of the spawned gun models (set by the views): yours in first person, the body's for others.
         private Transform _viewMuzzle;
+        private Transform _viewMuzzleWorld;   // where your gun's muzzle appears in the world (see WeaponViewFirstPerson)
         private Transform _bodyMuzzle;
 
         // ---- Synced presentation state (owner writes; the views read it) ----
@@ -197,11 +198,22 @@ namespace Deadfreight.Combat
         }
 
         /// <summary>Called by the views: the spawned gun model's muzzle (first person for you, body for others).</summary>
-        public void SetModelMuzzle(Transform modelMuzzle, bool firstPerson)
+        /// <param name="worldPoint">
+        /// First person only: a point that tracks where the muzzle appears in the world. Needed when the gun
+        /// is drawn by its own camera at the origin, so its real position isn't where you see it.
+        /// </param>
+        public void SetModelMuzzle(Transform modelMuzzle, bool firstPerson, Transform worldPoint = null)
         {
             if (modelMuzzle == null) return;
-            if (firstPerson) _viewMuzzle = modelMuzzle;
-            else _bodyMuzzle = modelMuzzle;
+            if (firstPerson)
+            {
+                _viewMuzzle = modelMuzzle;
+                _viewMuzzleWorld = worldPoint;
+            }
+            else
+            {
+                _bodyMuzzle = modelMuzzle;
+            }
         }
 
         public void Reload()
@@ -448,7 +460,14 @@ namespace Deadfreight.Combat
         }
 
         /// <summary>Where shots visually start: the first-person muzzle for the owner, the body's for everyone else.</summary>
-        private Vector3 MuzzlePosition => MuzzleTransform != null ? MuzzleTransform.position : EyePosition;
+        private Vector3 MuzzlePosition
+        {
+            get
+            {
+                if (IsOwner && _viewMuzzleWorld != null) return _viewMuzzleWorld.position;
+                return MuzzleTransform != null ? MuzzleTransform.position : EyePosition;
+            }
+        }
 
         /// <summary>The muzzle point this machine shows shots from (null until a gun model has spawned).</summary>
         private Transform MuzzleTransform => IsOwner ? _viewMuzzle : _bodyMuzzle;
@@ -488,9 +507,18 @@ namespace Deadfreight.Combat
             if (weapon.muzzleFlashPrefab == null) return;
 
             Transform at = MuzzleTransform;
-            GameObject flash = at != null
-                ? Instantiate(weapon.muzzleFlashPrefab, at.position, at.rotation, at)
-                : Instantiate(weapon.muzzleFlashPrefab, MuzzlePosition, Quaternion.LookRotation(transform.forward));
+            GameObject flash;
+            if (at != null)
+            {
+                flash = Instantiate(weapon.muzzleFlashPrefab, at.position, at.rotation, at);
+                // Same layer as the gun, so a first-person flash is drawn by the gun's own camera.
+                foreach (var t in flash.GetComponentsInChildren<Transform>(true))
+                    t.gameObject.layer = at.gameObject.layer;
+            }
+            else
+            {
+                flash = Instantiate(weapon.muzzleFlashPrefab, MuzzlePosition, Quaternion.LookRotation(transform.forward));
+            }
             Destroy(flash, 3f);
         }
 

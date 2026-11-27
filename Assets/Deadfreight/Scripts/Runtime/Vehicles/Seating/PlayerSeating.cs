@@ -18,7 +18,7 @@ namespace Deadfreight.Vehicles
     public sealed class PlayerSeating : NetworkBehaviour
     {
         [Tooltip("Driver input sends per second")]
-        [Unit("Hz")] [SerializeField] private float inputSendRate = 20f;
+        [Unit("Hz")][SerializeField] private float inputSendRate = 20f;
 
         private PlayerState _state;
         private KinematicCharacterMotor _motor;
@@ -126,8 +126,9 @@ namespace Deadfreight.Vehicles
             ResolveSeat();
             if (_seat == null) return;
 
-            // Every machine: pin the player to the seat.
+            // Every machine: pin the player to the seat, eyes at the seat's height.
             transform.position = _seat.transform.position;
+            if (_camera != null) _camera.SetEyeHeight(_seat.EyeHeight);
 
             if (!IsOwner || _camera == null) return;
 
@@ -201,6 +202,7 @@ namespace Deadfreight.Vehicles
 
             if (_capsule != null) _capsule.enabled = true;
             if (IsOwner && _motor != null) _motor.enabled = true;
+            if (_camera != null) _camera.SetEyeHeight(null);   // standing eye height again
         }
 
         /// <summary>The vehicle's velocity, measured from how far it moved this frame and smoothed.</summary>
